@@ -1,39 +1,60 @@
-import { Probot } from "probot";
+import { Probot } from 'probot';
 import {Context} from 'probot/lib/context';
 import {EventPayloads} from '@octokit/webhooks/dist-types/generated/event-payloads';
 
-const getPrNumbers = (context: Context<EventPayloads.WebhookPayloadCheckRun>): number[] => {
-  return context.payload.check_run.pull_requests.map(pr => pr.number);
+const getWorkflowPrNumbers = (context: Context<EventPayloads.WebhookPayloadWorkflowRun>): number[] => {
+  return context.payload.workflow_run ? context.payload.workflow_run.pull_requests.map(pr => pr.number) : [];
 }
 
 type CheckRunConclusion = 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required' | 'stale';
-const getCheckRunConclusion = (context: Context<EventPayloads.WebhookPayloadCheckRun>): CheckRunConclusion | null => {
-  return context.payload.check_run.conclusion as CheckRunConclusion | null;
+const getWorkflowRunConclusion = (context: Context<EventPayloads.WebhookPayloadWorkflowRun>): CheckRunConclusion | null => {
+  return context.payload.workflow_run?.conclusion as CheckRunConclusion || null;
 }
 
-const sendComment = (context: Context, prNumber: number, body: string): void => {
+const getWorkflowRunInfo = (context: Context<EventPayloads.WebhookPayloadWorkflowRun>) => {
+  return context.payload.workflow_run && context.repo({
+    run_id: context.payload.workflow_run.id,
+  }) || null;
+};
+
+const getWorkflowArtifactsInfo = (context: Context) => {
+  const workflowRunInfo = getWorkflowRunInfo(context);
+
+  return workflowRunInfo && context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo)
+};
+
+const sendComment = (context: Context, prNumber: number, body: string): Promise<unknown> => {
   const comment = context.repo({
     body,
     issue_number: prNumber,
   });
 
-  context.octokit.issues.createComment(comment);
+  return context.octokit.issues.createComment(comment);
 }
 
 export = (app: Probot) => {
-  app.on('check_run', async context => {
-    const [prNumber] = getPrNumbers(context)
+  app.on('workflow_run.completed', async context => {
+    const [prNumber] = getWorkflowPrNumbers(context);
 
-    if (context.payload.action === 'completed') {
-      // download artifacts and send message
-      if (getCheckRunConclusion(context) === 'success') {
-        sendComment(context, prNumber, 'Screenshots tests completed successfully :white_check_mark:');
-      } else {
-        sendComment(context, prNumber, 'Screenshots tests failed :x:');
-      }
+    if (getWorkflowRunConclusion(context) === 'success') {
+      sendComment(context, prNumber, 'Screenshots tests completed successfully :white_check_mark:');
     } else {
-      // refresh comment with loading status (if it exists)
-      sendComment(context, prNumber, 'Screenshots running :rocket:');
+      const artifactsInfo = await getWorkflowArtifactsInfo(context);
+
+      console.log(artifactsInfo);
+
+      sendComment(context, prNumber, 'Screenshots tests failed :x:');
     }
+  });
+
+  /**
+   * WARNING: "Re-run all jobs" button does not generate worklow_run.requested event
+   * see {@link https://github.com/actions/runner/issues/726 github issue}
+   * */
+  app.on('workflow_run.requested', async context => {
+    const [prNumber] = getWorkflowPrNumbers(context);
+
+    // TODO: refresh comment with loading status (if it exists)
+    sendComment(context, prNumber, 'Screenshots running :rocket:');
   });
 };
