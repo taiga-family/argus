@@ -1,30 +1,39 @@
 import { Probot } from "probot";
+import {Context} from 'probot/lib/context';
+import {EventPayloads} from '@octokit/webhooks/dist-types/generated/event-payloads';
+
+const getPrNumbers = (context: Context<EventPayloads.WebhookPayloadCheckRun>): number[] => {
+  return context.payload.check_run.pull_requests.map(pr => pr.number);
+}
+
+type CheckRunConclusion = 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required' | 'stale';
+const getCheckRunConclusion = (context: Context<EventPayloads.WebhookPayloadCheckRun>): CheckRunConclusion | null => {
+  return context.payload.check_run.conclusion as CheckRunConclusion | null;
+}
+
+const sendComment = (context: Context, prNumber: number, body: string): void => {
+  const comment = context.repo({
+    body,
+    issue_number: prNumber,
+  });
+
+  context.octokit.issues.createComment(comment);
+}
 
 export = (app: Probot) => {
-  app.on("issues.opened", async (context) => {
-    const issueComment = context.issue({
-      body: "Thanks for opening this issue!",
-    });
-    await context.octokit.issues.createComment(issueComment);
+  app.on('check_run', async context => {
+    const [prNumber] = getPrNumbers(context)
 
-    context.log.info('Code was pushed to the repo, what should we do with it?');
-  });
-
-  app.on('issue_comment.created', async context => {
-    if (context.isBot) {
-      return;
+    if (context.payload.action === 'completed') {
+      // download artifacts and send message
+      if (getCheckRunConclusion(context) === 'success') {
+        sendComment(context, prNumber, 'Screenshots tests completed successfully :white_check_mark:');
+      } else {
+        sendComment(context, prNumber, 'Screenshots tests failed :x:');
+      }
+    } else {
+      // refresh comment with loading status (if it exists)
+      sendComment(context, prNumber, 'Screenshots running :rocket:');
     }
-
-    const issueComment = context.issue({
-      body: "Edited!2",
-    });
-    await context.octokit.issues.createComment(issueComment);
-
-    context.log.info('Code was pushed to the repo, what should we do with it?222');
   });
-  // For more information on building apps:
-  // https://probot.github.io/docs/
-
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
 };
