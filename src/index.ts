@@ -32,6 +32,10 @@ const sendComment = (context: Context, prNumber: number, body: string): Promise<
   return context.octokit.issues.createComment(comment);
 }
 
+const buildMarkdownText = (context: Context, text: string) => {
+  return context.octokit.markdown.render({text: `[${text}](https://translate.google.com/?hl=ru).`})
+}
+
 export = (app: Probot) => {
   app.on('workflow_run.completed', async context => {
     const [prNumber] = getWorkflowPrNumbers(context);
@@ -41,9 +45,26 @@ export = (app: Probot) => {
     } else {
       const artifactsInfo = await getWorkflowArtifactsInfo(context);
 
-      console.log(artifactsInfo);
+      if (artifactsInfo) {
+        const [artifact_id] = artifactsInfo.data.artifacts.map(artifact => artifact.id);
+        const artifactLink = await context.octokit.actions.downloadArtifact(
+            context.repo({artifact_id, archive_format: 'zip'})
+        );
 
-      sendComment(context, prNumber, 'Screenshots tests failed :x:');
+        sendComment(
+            context,
+            prNumber,
+            `Screenshots tests failed :x:\n Download artifacts via ${artifactLink}`
+        );
+        const testText =  await buildMarkdownText(context,'test');
+        sendComment(context, prNumber, testText.data);
+      } else {
+        sendComment(
+            context,
+            prNumber,
+            `Screenshots tests failed :x:\n Manually download artifacts of workflow to see screenshots diffs.`
+        );
+      }
     }
   });
 
