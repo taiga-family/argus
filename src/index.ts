@@ -1,4 +1,5 @@
 import {Probot} from 'probot';
+import AdmZip from 'adm-zip';
 import {Bot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion} from './selectors';
 
@@ -19,9 +20,10 @@ export = (app: Probot) => {
 
       case 'failure':
         const workflowRunId = context.payload.workflow_run?.id || null;
-        const artifacts = workflowRunId ? await bot.getWorkflowArtifacts(workflowRunId) : [];
+        const artifacts = workflowRunId ? await bot.getWorkflowArtifacts(workflowRunId) as ArrayBuffer[] : [];
+        const zip = new AdmZip(Buffer.from(artifacts[0]));
 
-        console.log(artifacts);
+        zip.extractAllTo('./screenshots', true);
 
         const markdownText = artifacts.length
             ? `Screenshots tests failed :x:\n [Dumb link](https://translate.google.com/?hl=ru).`
