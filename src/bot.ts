@@ -1,5 +1,5 @@
 import {Context} from 'probot/lib/context';
-import {GITHUB_CDN_DOMAIN, IMAGES_STORAGE_FOLDER, STORAGE_BRANCH} from './constants';
+import {DEFAULT_MAIN_BRANCH, GITHUB_CDN_DOMAIN, IMAGES_STORAGE_FOLDER, STORAGE_BRANCH} from './constants';
 
 export class Bot {
     constructor(private context: Context) {}
@@ -37,7 +37,7 @@ export class Bot {
         return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
     }
 
-    async getFileInfo(path: string, branch: string = 'master') {
+    async getFileInfo(path: string, branch: string = DEFAULT_MAIN_BRANCH) {
         return this.context.octokit.repos.getContent({
             ...this.context.repo(),
             path,
@@ -45,7 +45,7 @@ export class Bot {
         }).catch(() => null);
     }
 
-    async createBranch(branch: string, fromBranch = 'master') {
+    async createBranch(branch: string, fromBranch = DEFAULT_MAIN_BRANCH) {
         if (await this.getBranchInfo(branch)) {
             return;
         }
