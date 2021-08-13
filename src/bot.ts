@@ -41,6 +41,14 @@ export class Bot {
         return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
     }
 
+    async getFileInfo(path: string, branch: string = 'master') {
+        return this.context.octokit.repos.getContent({
+            ...this.context.repo(),
+            path,
+            ref: branch
+        }).catch(() => null);
+    }
+
     async createBranch(branch: string, fromBranch = 'master') {
         if (await this.getBranchInfo(branch)) {
             return;
@@ -67,6 +75,8 @@ export class Bot {
     async uploadImage(image: Buffer, fileName: string): Promise<string> {
         const {repo, owner} = this.context.repo();
         const content = image.toString('base64');
+        const path = `${IMAGES_STORAGE_FOLDER}/${fileName}`;
+        const oldImageVersion = await this.getFileInfo(path, STORAGE_BRANCH);
 
         await this.createBranch(STORAGE_BRANCH);
 
@@ -75,8 +85,9 @@ export class Bot {
                 owner,
                 repo,
                 content,
+                path,
+                sha: oldImageVersion && 'sha' in oldImageVersion.data ? oldImageVersion.data.sha : undefined,
                 branch: STORAGE_BRANCH,
-                path: `${IMAGES_STORAGE_FOLDER}/${fileName}`,
                 message: 'chore(argus): upload images of failed screenshot tests',
             })
             .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${fileName}`);
