@@ -1,9 +1,11 @@
-const createScreenshotRowInfo = (link: string): string => {
-  return `**TODO**: add path to image:\n![](${link})<hr>\n`;
+import {IZipEntry} from 'adm-zip';
+
+const createScreenshotRowInfo = ([{entryName}, link]: [IZipEntry, string]): string => {
+  return `<h4>${entryName}:</h4>\n\n ![](${link})\n<br>\n`;
 };
 
-export const getFailureReport = (imageUrls: string[]): string =>
+export const getFailureReport = (imagesInfo: [IZipEntry, string][]): string =>
 `
-Screenshots tests failed :x:\n 
-${imageUrls.map(createScreenshotRowInfo).join('')}
+<h1>Screenshots tests failed :x:</h1>\n
+${imagesInfo.map(createScreenshotRowInfo).join('')}
 `;
