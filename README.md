@@ -1,13 +1,16 @@
 # argus
 
 ## Roadmap
-- edit already create message instead of new one's creation
-- listen closing/merge of PR and delete saved screenshots diff folder
-- refresh comment with loading status (if it exists) on _workflow_run.requested_
-- check all permissions again (with turning extra off) and update app.yml file
-- write **About Permissions** and describe why bot need every if them
-- deploy to glitch
-- test first draft of app
+- [ ] edit already created message instead of new one's creation
+- [ ] listen closing/merge of PR and delete saved screenshots diff folder
+- [ ] refresh comment with loading status (if it exists) on _workflow_run.requested_
+- [ ] check all permissions again (with turning extra off) and update app.yml file
+- [ ] write **About Permissions** and describe why bot need every if them
+- [ ] make configurable param (bot parse demo environments?) to detect
+after which workflow bot should look for artifacts zip with test screenshots
+(parsing workflow name and find words with artifacts)
+- [ ] deploy to glitch
+- [ ] test first draft of app
 
 > A GitHub App built with [Probot](https://github.com/probot/probot) that TODO
 
