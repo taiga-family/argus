@@ -1,7 +1,7 @@
 import {Probot} from 'probot';
-import AdmZip from 'adm-zip';
 import {Bot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion} from './selectors';
+import {getFilesFromZipFile} from './utils';
 
 const BOT_DEFAULT_MESSAGES = {
   LOADING: 'Screenshots running :rocket:',
@@ -20,18 +20,18 @@ export = (app: Probot) => {
 
       case 'failure':
         const workflowRunId = context.payload.workflow_run?.id || null;
-        const artifacts = workflowRunId ? await bot.getWorkflowArtifacts(workflowRunId) as ArrayBuffer[] : [];
-        const zip = new AdmZip(Buffer.from(artifacts[0]));
+        const artifacts = workflowRunId ? await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId) : [];
+        const [image] = getFilesFromZipFile(artifacts[0]);
 
-        zip.extractAllTo('./screenshots', true);
+        const imageUrl = await bot.uploadImage(image, 'test4.png');
 
         const markdownText = artifacts.length
-            ? `Screenshots tests failed :x:\n [Dumb link](https://translate.google.com/?hl=ru).`
+            ? `Screenshots tests failed :x:\n **TODO:** ![testImage](${imageUrl})`
             : BOT_DEFAULT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
 
         return bot
             .buildMarkdownText(markdownText)
-            .then(({data}) => bot.sendComment(prNumber, data));
+            .then(({data}) => bot.sendComment(prNumber, data))
 
       default:
         return;
