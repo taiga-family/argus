@@ -13,10 +13,6 @@ export class Bot {
         return this.context.octokit.issues.createComment(comment);
     }
 
-    async buildMarkdownText(text: string) {
-        return this.context.octokit.markdown.render({text})
-    }
-
     async getWorkflowArtifacts<T>(workflowRunId: number): Promise<T[]> {
         const workflowRunInfo = this.context.repo({
             run_id: workflowRunId,
@@ -69,13 +65,13 @@ export class Bot {
     /**
      * Upload image to a separate branch (with creation of this branch if need)
      * @param image buffer of the file
-     * @param fileName file name of future file
+     * @param relativePath additional path nesting + file name of future file
      * @return url of the download uploaded file
      */
-    async uploadImage(image: Buffer, fileName: string): Promise<string> {
+    async uploadImage(image: Buffer, relativePath: string): Promise<string> {
         const {repo, owner} = this.context.repo();
         const content = image.toString('base64');
-        const path = `${IMAGES_STORAGE_FOLDER}/${fileName}`;
+        const path = `${IMAGES_STORAGE_FOLDER}/${relativePath}`;
         const oldImageVersion = await this.getFileInfo(path, STORAGE_BRANCH);
 
         await this.createBranch(STORAGE_BRANCH);
@@ -90,6 +86,6 @@ export class Bot {
                 branch: STORAGE_BRANCH,
                 message: 'chore(argus): upload images of failed screenshot tests',
             })
-            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${fileName}`);
+            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${relativePath}`);
     }
 }

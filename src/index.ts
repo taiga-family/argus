@@ -1,7 +1,7 @@
 import {Probot} from 'probot';
 import {Bot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion} from './selectors';
-import {getFilesFromZipFile} from './utils';
+import {getFilesFromZipFile, getFailureReport} from './utils';
 
 const BOT_DEFAULT_MESSAGES = {
   LOADING: 'Screenshots running :rocket:',
@@ -20,18 +20,20 @@ export = (app: Probot) => {
 
       case 'failure':
         const workflowRunId = context.payload.workflow_run?.id || null;
+        const {repo, owner} = context.repo();
         const artifacts = workflowRunId ? await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId) : [];
-        const [image] = getFilesFromZipFile(artifacts[0]);
+        const images = getFilesFromZipFile(artifacts[0]);
+        const key = `${owner}-${repo}-${prNumber}`;
 
-        const imageUrl = await bot.uploadImage(image, 'test4.png');
+        const imagesUrls = await Promise.all(
+            images.map((image, index) => bot.uploadImage(image, `${key}/${index}.png`))
+        );
 
-        const markdownText = artifacts.length
-            ? `Screenshots tests failed :x:\n **TODO:** ![testImage](${imageUrl})`
+        const reportText = artifacts.length
+            ? getFailureReport(imagesUrls)
             : BOT_DEFAULT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
 
-        return bot
-            .buildMarkdownText(markdownText)
-            .then(({data}) => bot.sendComment(prNumber, data))
+        return bot.sendComment(prNumber, reportText);
 
       default:
         return;
