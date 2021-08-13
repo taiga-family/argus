@@ -1,10 +1,8 @@
 import {Probot} from 'probot';
 import {Bot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion} from './selectors';
-import {getFailureReport, getScreenshotDiffImages} from './utils';
+import {getFailureReport, getScreenshotDiffImages, zip} from './utils';
 import {BOT_MESSAGES} from './constants';
-
-const zip = <T, G>(a: T[], b: G[]): [T, G][] => a.map((item, i) => [item, b[i]]);
 
 export = (app: Probot) => {
   app.on('workflow_run.completed', async context => {
