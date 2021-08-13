@@ -1,4 +1,5 @@
 import {Context} from 'probot/lib/context';
+import {GITHUB_CDN_DOMAIN, IMAGES_STORAGE_FOLDER, STORAGE_BRANCH} from './constants';
 
 export class Bot {
     constructor(private context: Context) {}
@@ -66,20 +67,18 @@ export class Bot {
     async uploadImage(image: Buffer, fileName: string): Promise<string> {
         const {repo, owner} = this.context.repo();
         const content = image.toString('base64');
-        const imageStorageBranch = 'argus-bot-storage';
-        const imageStorageFolder = '__argus-screenshots';
 
-        await this.createBranch(imageStorageBranch);
+        await this.createBranch(STORAGE_BRANCH);
 
         return this.context.octokit.repos
             .createOrUpdateFileContents({
                 owner,
                 repo,
                 content,
-                branch: imageStorageBranch,
-                path: `${imageStorageFolder}/${fileName}`,
+                branch: STORAGE_BRANCH,
+                path: `${IMAGES_STORAGE_FOLDER}/${fileName}`,
                 message: 'chore(argus): upload images of failed screenshot tests',
             })
-            .then(() => `https://raw.githubusercontent.com/${owner}/${repo}/${imageStorageBranch}/${imageStorageFolder}/${fileName}`);
+            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${fileName}`);
     }
 }
