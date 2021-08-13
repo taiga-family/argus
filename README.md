@@ -1,5 +1,14 @@
 # argus
 
+## Roadmap
+- edit already create message instead of new one's creation
+- listen closing/merge of PR and delete saved screenshots diff folder
+- refresh comment with loading status (if it exists) on _workflow_run.requested_
+- check all permissions again (with turning extra off) and update app.yml file
+- write **About Permissions** and describe why bot need every if them
+- deploy to glitch
+- test first draft of app
+
 > A GitHub App built with [Probot](https://github.com/probot/probot) that TODO
 
 ## Setup

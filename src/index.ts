@@ -15,8 +15,11 @@ export = (app: Probot) => {
 
       case 'failure':
         const workflowRunId = context.payload.workflow_run?.id || null;
+
+        if (!workflowRunId) return;
+
         const {repo, owner} = context.repo();
-        const artifacts = workflowRunId ? await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId) : [];
+        const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
         const images = getScreenshotDiffImages(artifacts[0]);
         const key = `${owner}-${repo}-${prNumber}`;
 
