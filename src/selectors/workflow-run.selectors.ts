@@ -11,3 +11,7 @@ type CheckRunConclusion = 'success' | 'failure' | 'neutral' | 'cancelled' | 'tim
 export const getWorkflowRunConclusion = (context: WorkflowRunContext): CheckRunConclusion | null => {
     return context.payload.workflow_run?.conclusion as CheckRunConclusion || null;
 }
+
+export const getWorkflowRunId = (context: WorkflowRunContext): number | null => {
+    return context.payload.workflow_run?.id ?? null;
+}

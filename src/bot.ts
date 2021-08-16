@@ -11,30 +11,47 @@ import {checkContainsHiddenLabel, markCommentWithHiddenLabel} from './utils';
 export abstract class Bot {
     constructor(protected context: Context) {}
 
-    async sendComment(prNumber: number, markdownText: string) {
+    /**
+     * Send comment to the issue
+     * (pull request is the same issue but with code)
+     * @param issueNumber
+     * @param markdownText string (optionally, can include markdown syntax)
+     */
+    async sendComment(issueNumber: number, markdownText: string) {
         const comment = this.context.repo({
             body: markdownText,
-            issue_number: prNumber,
+            issue_number: issueNumber,
         });
 
         return this.context.octokit.issues.createComment(comment);
     }
 
-    async updateComment(commentId: number, newContent: string) {
+    /**
+     * Update certain comment in the issue (pull request is the same issue but with code)
+     * @param commentId
+     * @param newMarkdownContent string (optionally, can include markdown syntax)
+     */
+    async updateComment(commentId: number, newMarkdownContent: string) {
         return this.context.octokit.rest.issues.updateComment({
             ...this.context.repo(),
             comment_id: commentId,
-            body: newContent,
+            body: newMarkdownContent,
         });
     }
 
-    async getCommentsByPrId(prId: number) {
+    /**
+     * Get info about all comments in the current issue/PR
+     */
+    async getCommentsByIssueId(issueNumber: number) {
         return this.context.octokit.rest.issues.listComments({
             ...this.context.repo(),
-            issue_number: prId,
-        });
+            issue_number: issueNumber,
+        }).then(({data}) => data);
     }
 
+    /**
+     * Download artifacts (zip files) in the workflow and unpack them
+     */
     async getWorkflowArtifacts<T>(workflowRunId: number): Promise<T[]> {
         const workflowRunInfo = this.context.repo({
             run_id: workflowRunId,
@@ -55,6 +72,9 @@ export abstract class Bot {
         return [];
     };
 
+    /**
+     * Get info about file by its path in the repository
+     */
     async getFileInfo(path: string, branch: string = DEFAULT_MAIN_BRANCH) {
         return this.context.octokit.repos.getContent({
             ...this.context.repo(),
@@ -63,6 +83,9 @@ export abstract class Bot {
         }).catch(() => null);
     }
 
+    /**
+     * Get info about git branch by its name
+     */
     async getBranchInfo(branch: string) {
         return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
     }
@@ -90,16 +113,16 @@ export abstract class Bot {
     }
 
     /**
-     * Upload image to a separate branch (with creation of this branch if it not exists yet)
-     * @param image buffer of the file
-     * @param relativePath additional path nesting + file name of future file
-     * @return url of the download uploaded file
+     * Upload file to a separate branch (with creation of this branch if it not exists yet)
+     * @param file buffer of the file
+     * @param path path of future file (including file name + file format)
+     * @param commitMessage
+     * @return url link to download the uploaded file
      */
-    async uploadImage(image: Buffer, relativePath: string): Promise<string> {
+    async uploadFile(file: Buffer, path: string, commitMessage: string): Promise<string> {
         const {repo, owner} = this.context.repo();
-        const content = image.toString('base64');
-        const path = `${IMAGES_STORAGE_FOLDER}/${relativePath}`;
-        const oldImageVersion = await this.getFileInfo(path, STORAGE_BRANCH);
+        const content = file.toString('base64');
+        const oldFileVersion = await this.getFileInfo(path, STORAGE_BRANCH);
 
         await this.createBranch(STORAGE_BRANCH);
 
@@ -109,17 +132,17 @@ export abstract class Bot {
                 repo,
                 content,
                 path,
-                sha: oldImageVersion && 'sha' in oldImageVersion.data ? oldImageVersion.data.sha : undefined,
+                sha: oldFileVersion && 'sha' in oldFileVersion.data ? oldFileVersion.data.sha : undefined,
                 branch: STORAGE_BRANCH,
-                message: 'chore(argus): upload images of failed screenshot tests',
+                message: commitMessage,
             })
-            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${relativePath}`);
+            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${path}`);
     }
 }
 
 export class ArgusBot extends Bot {
     async getPrevBotReportComment(prNumber: number) {
-        const prComments = await this.getCommentsByPrId(prNumber).then(({data}) => data);
+        const prComments = await this.getCommentsByIssueId(prNumber);
 
         return prComments.find(
             ({body}) => checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL)
@@ -133,5 +156,16 @@ export class ArgusBot extends Bot {
         return oldBotComment?.id
             ? this.updateComment(oldBotComment.id, markedMarkdownText)
             : this.sendComment(prNumber, markedMarkdownText);
+    }
+
+    async uploadImage(file: Buffer, imagePath: string) {
+        const {repo, owner} = this.context.repo();
+        const commitMessage = 'chore(argus): upload images of failed screenshot tests';
+
+        return this.uploadFile(
+            file,
+            `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}/${imagePath}`,
+            commitMessage
+        );
     }
 }
