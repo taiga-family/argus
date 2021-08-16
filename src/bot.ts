@@ -1,16 +1,38 @@
 import {Context} from 'probot/lib/context';
-import {DEFAULT_MAIN_BRANCH, GITHUB_CDN_DOMAIN, IMAGES_STORAGE_FOLDER, STORAGE_BRANCH} from './constants';
+import {
+    DEFAULT_MAIN_BRANCH,
+    GITHUB_CDN_DOMAIN,
+    IMAGES_STORAGE_FOLDER,
+    STORAGE_BRANCH,
+    TEST_REPORT_HIDDEN_LABEL,
+} from './constants';
+import {checkContainsHiddenLabel, markCommentWithHiddenLabel} from './utils';
 
-export class Bot {
-    constructor(private context: Context) {}
+export abstract class Bot {
+    constructor(protected context: Context) {}
 
-    async sendComment(prNumber: number, body: string) {
+    async sendComment(prNumber: number, markdownText: string) {
         const comment = this.context.repo({
-            body,
+            body: markdownText,
             issue_number: prNumber,
         });
 
         return this.context.octokit.issues.createComment(comment);
+    }
+
+    async updateComment(commentId: number, newContent: string) {
+        return this.context.octokit.rest.issues.updateComment({
+            ...this.context.repo(),
+            comment_id: commentId,
+            body: newContent,
+        });
+    }
+
+    async getCommentsByPrId(prId: number) {
+        return this.context.octokit.rest.issues.listComments({
+            ...this.context.repo(),
+            issue_number: prId,
+        });
     }
 
     async getWorkflowArtifacts<T>(workflowRunId: number): Promise<T[]> {
@@ -33,10 +55,6 @@ export class Bot {
         return [];
     };
 
-    async getBranchInfo(branch: string) {
-        return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
-    }
-
     async getFileInfo(path: string, branch: string = DEFAULT_MAIN_BRANCH) {
         return this.context.octokit.repos.getContent({
             ...this.context.repo(),
@@ -45,6 +63,15 @@ export class Bot {
         }).catch(() => null);
     }
 
+    async getBranchInfo(branch: string) {
+        return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
+    }
+
+    /**
+     * Create git branch in current repository (do nothing if branch already exists)
+     * @param branch new branch name
+     * @param fromBranch from which to create new branch
+     */
     async createBranch(branch: string, fromBranch = DEFAULT_MAIN_BRANCH) {
         if (await this.getBranchInfo(branch)) {
             return;
@@ -63,7 +90,7 @@ export class Bot {
     }
 
     /**
-     * Upload image to a separate branch (with creation of this branch if need)
+     * Upload image to a separate branch (with creation of this branch if it not exists yet)
      * @param image buffer of the file
      * @param relativePath additional path nesting + file name of future file
      * @return url of the download uploaded file
@@ -87,5 +114,24 @@ export class Bot {
                 message: 'chore(argus): upload images of failed screenshot tests',
             })
             .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${IMAGES_STORAGE_FOLDER}/${relativePath}`);
+    }
+}
+
+export class ArgusBot extends Bot {
+    async getPrevBotReportComment(prNumber: number) {
+        const prComments = await this.getCommentsByPrId(prNumber).then(({data}) => data);
+
+        return prComments.find(
+            ({body}) => checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL)
+        ) || null;
+    }
+
+    async createOrUpdateReport(prNumber: number, markdownText: string) {
+        const oldBotComment = await this.getPrevBotReportComment(prNumber);
+        const markedMarkdownText = markCommentWithHiddenLabel(markdownText, TEST_REPORT_HIDDEN_LABEL);
+
+        return oldBotComment?.id
+            ? this.updateComment(oldBotComment.id, markedMarkdownText)
+            : this.sendComment(prNumber, markedMarkdownText);
     }
 }

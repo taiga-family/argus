@@ -1,24 +1,25 @@
 import {Probot} from 'probot';
-import {Bot} from './bot';
+import {ArgusBot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion} from './selectors';
 import {getFailureReport, getScreenshotDiffImages, zip} from './utils';
 import {BOT_MESSAGES} from './constants';
 
 export = (app: Probot) => {
   app.on('workflow_run.completed', async context => {
-    const bot = new Bot(context);
+    const bot = new ArgusBot(context);
     const [prNumber] = getWorkflowPrNumbers(context);
 
     switch (getWorkflowRunConclusion(context)) {
       case 'success':
-        return bot.sendComment(prNumber, BOT_MESSAGES.SUCCESS);
+        return bot.createOrUpdateReport(prNumber, BOT_MESSAGES.SUCCESS);
 
       case 'failure':
-        const workflowRunId = context.payload.workflow_run?.id || null;
+        const workflowRunId = context.payload.workflow_run?.id;
 
         if (!workflowRunId) return;
 
         const {repo, owner} = context.repo();
+        /** TODO possibly there is a need to add timeout because at this time there are not always artifacts (test it!) */
         const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
         const images = getScreenshotDiffImages(artifacts[0]);
         const key = `${owner}-${repo}-${prNumber}`;
@@ -31,7 +32,7 @@ export = (app: Probot) => {
             ? getFailureReport(zip(images, imagesUrls))
             : BOT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
 
-        return bot.sendComment(prNumber, reportText);
+        return bot.createOrUpdateReport(prNumber, reportText);
 
       default:
         return;
@@ -43,10 +44,9 @@ export = (app: Probot) => {
    * see {@link https://github.com/actions/runner/issues/726 github issue}
    * */
   app.on('workflow_run.requested', async context => {
-    const bot = new Bot(context);
+    const bot = new ArgusBot(context);
     const [prNumber] = getWorkflowPrNumbers(context);
 
-    // TODO: refresh comment with loading status (if it exists)
-    await bot.sendComment(prNumber, BOT_MESSAGES.LOADING);
+    return bot.createOrUpdateReport(prNumber, BOT_MESSAGES.LOADING);
   });
 };
