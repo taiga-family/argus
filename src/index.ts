@@ -2,7 +2,7 @@ import {Probot} from 'probot';
 import {ArgusBot} from './bot';
 import {getWorkflowPrNumbers, getWorkflowRunConclusion, getWorkflowRunId} from './selectors';
 import {getFailureReport, getScreenshotDiffImages, zip} from './utils';
-import {BOT_MESSAGES} from './constants';
+import {BOT_REPORT_MESSAGES} from './constants';
 
 export = (app: Probot) => {
   app.on('workflow_run.completed', async context => {
@@ -11,7 +11,7 @@ export = (app: Probot) => {
 
     switch (getWorkflowRunConclusion(context)) {
       case 'success':
-        return bot.createOrUpdateReport(prNumber, BOT_MESSAGES.SUCCESS);
+        return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.SUCCESS);
 
       case 'failure':
         const workflowRunId = getWorkflowRunId(context);
@@ -23,12 +23,12 @@ export = (app: Probot) => {
         const images = getScreenshotDiffImages(artifact);
 
         const imagesUrls = await Promise.all(images.map(
-            (image, index) => bot.uploadImage(image.getData(), `pr-${prNumber}/${index}.png`)
+            (image, index) => bot.uploadImage(image.getData(), prNumber, `${index}.png`)
         ));
 
         const reportText = images.length
             ? getFailureReport(zip(images, imagesUrls))
-            : BOT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
+            : BOT_REPORT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
 
         return bot.createOrUpdateReport(prNumber, reportText);
 
@@ -45,6 +45,13 @@ export = (app: Probot) => {
     const bot = new ArgusBot(context);
     const [prNumber] = getWorkflowPrNumbers(context);
 
-    return bot.createOrUpdateReport(prNumber, BOT_MESSAGES.LOADING);
+    return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING);
+  });
+
+  app.on('pull_request.closed', async context => {
+    const bot = new ArgusBot(context);
+    const prNumber = context.payload.number;
+
+    return bot.deleteUploadedImagesFolder(prNumber);
   });
 };

@@ -1,5 +1,6 @@
 import {Context} from 'probot/lib/context';
 import {
+    BOT_COMMIT_MESSAGE,
     DEFAULT_MAIN_BRANCH,
     GITHUB_CDN_DOMAIN,
     IMAGES_STORAGE_FOLDER,
@@ -114,17 +115,20 @@ export abstract class Bot {
 
     /**
      * Upload file to a separate branch (with creation of this branch if it not exists yet)
-     * @param file buffer of the file
-     * @param path path of future file (including file name + file format)
-     * @param commitMessage
-     * @return url link to download the uploaded file
      */
-    async uploadFile(file: Buffer, path: string, commitMessage: string): Promise<string> {
+    async uploadFile({file, path, branch, commitMessage}: {
+        /** buffer of the file */
+        file: Buffer,
+        /** path of future file (including file name + file format) */
+        path: string,
+        commitMessage: string,
+        branch: string
+    }): Promise<string> {
         const {repo, owner} = this.context.repo();
         const content = file.toString('base64');
-        const oldFileVersion = await this.getFileInfo(path, STORAGE_BRANCH);
+        const oldFileVersion = await this.getFileInfo(path, branch);
 
-        await this.createBranch(STORAGE_BRANCH);
+        await this.createBranch(branch);
 
         return this.context.octokit.repos
             .createOrUpdateFileContents({
@@ -132,11 +136,31 @@ export abstract class Bot {
                 repo,
                 content,
                 path,
+                branch,
                 sha: oldFileVersion && 'sha' in oldFileVersion.data ? oldFileVersion.data.sha : undefined,
-                branch: STORAGE_BRANCH,
                 message: commitMessage,
             })
-            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${STORAGE_BRANCH}/${path}`);
+            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`);
+    }
+
+    async deleteFile({path, commitMessage, branch}: {
+        path: string,
+        commitMessage: string,
+        branch: string
+    }) {
+        const oldFileVersion = await this.getFileInfo(path, branch);
+
+        if (!(oldFileVersion && 'sha' in oldFileVersion.data)) {
+            return Promise.reject('the file is not found!');
+        }
+
+        return this.context.octokit.rest.repos.deleteFile({
+            ...this.context.repo(),
+            path,
+            branch,
+            message: commitMessage,
+            sha: oldFileVersion.data.sha,
+        })
     }
 }
 
@@ -158,14 +182,37 @@ export class ArgusBot extends Bot {
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async uploadImage(file: Buffer, imagePath: string) {
-        const {repo, owner} = this.context.repo();
-        const commitMessage = 'chore(argus): upload images of failed screenshot tests';
-
-        return this.uploadFile(
+    async uploadImage(file: Buffer, prNumber: number, imagePath: string) {
+        return this.uploadFile({
             file,
-            `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}/${imagePath}`,
-            commitMessage
+            path: `${this.getSavedImagePathPrefix(prNumber)}/${imagePath}`,
+            commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
+            branch: STORAGE_BRANCH,
+        });
+    }
+
+    async deleteUploadedImagesFolder(prNumber: number) {
+        const folder = await this.getFileInfo(
+            this.getSavedImagePathPrefix(prNumber),
+            STORAGE_BRANCH
         );
+
+        if (folder && Array.isArray(folder.data)) {
+            return Promise.all(
+                folder.data.map(({path}) => this.deleteFile({
+                    path,
+                    commitMessage: BOT_COMMIT_MESSAGE.DELETE_FOLDER,
+                    branch: STORAGE_BRANCH
+                }))
+            );
+        }
+
+        return null;
+    }
+
+    private getSavedImagePathPrefix(prNumber: number): string {
+        const {repo, owner} = this.context.repo();
+
+        return `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}-${prNumber}`;
     }
 }
