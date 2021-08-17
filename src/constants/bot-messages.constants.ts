@@ -1,7 +1,13 @@
 export const BOT_REPORT_MESSAGES = {
-    LOADING: '# Screenshots running :rocket:',
-    SUCCESS: '# Screenshots tests completed successfully :white_check_mark:',
-    ARTIFACTS_DOWNLOAD_FAILED: '# Screenshots tests failed :x:\n Manually download artifacts of workflow to see screenshots diffs.',
+    LOADING_WORKFLOW: '# Tests are running :rocket:',
+    SUCCESS_WORKFLOW: '# Tests completed successfully :white_check_mark:',
+    FAILED_WORKFLOW_NO_SCREENSHOTS: `
+# Workflow with tests failed :x:\n
+I have not found any screenshots diffs. Probably, workflow failed for another reason.\n
+Manually download artifacts of workflow or look into workflow logs to check it.`,
+    PR_CLOSED: `
+# Pull request was closed :heavy_check_mark:\n
+All saved screenshots (for current PR) were deleted :wastebasket:`,
 } as const;
 
 export const BOT_COMMIT_MESSAGE = {

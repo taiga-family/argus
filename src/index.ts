@@ -11,7 +11,7 @@ export = (app: Probot) => {
 
     switch (getWorkflowRunConclusion(context)) {
       case 'success':
-        return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.SUCCESS);
+        return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.SUCCESS_WORKFLOW);
 
       case 'failure':
         const workflowRunId = getWorkflowRunId(context);
@@ -25,7 +25,7 @@ export = (app: Probot) => {
 
         const reportText = images.length
             ? getFailureReport(zip(images, imagesUrls))
-            : BOT_REPORT_MESSAGES.ARTIFACTS_DOWNLOAD_FAILED;
+            : BOT_REPORT_MESSAGES.FAILED_WORKFLOW_NO_SCREENSHOTS;
 
         return bot.createOrUpdateReport(prNumber, reportText);
 
@@ -42,13 +42,14 @@ export = (app: Probot) => {
     const bot = new ArgusBot(context);
     const [prNumber] = getWorkflowPrNumbers(context);
 
-    return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING);
+    return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING_WORKFLOW);
   });
 
   app.on('pull_request.closed', async context => {
     const bot = new ArgusBot(context);
     const prNumber = context.payload.number;
 
-    return bot.deleteUploadedImagesFolder(prNumber);
+    return bot.deleteUploadedImagesFolder(prNumber)
+        .then(() => bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.PR_CLOSED));
   });
 };

@@ -4,7 +4,7 @@
 - [X] edit already created message instead of new one's creation
 - [X] refresh comment with loading status (if it exists) on _workflow_run.requested_
 - [X] listen closing/merge of PR and delete saved screenshots diff folder
-- [ ] edit report when PR is closed (smth like: 'PR was closed and all saved screenshots deleted')
+- [X] edit report when PR is closed (smth like: 'PR was closed and all saved screenshots deleted')
 - [ ] check all permissions again (with turning extra off) and update app.yml file
 - [ ] write **About Permissions** and describe why bot need every if them
 - [ ] make configurable param (bot parse repo environments?) to detect
