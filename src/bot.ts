@@ -114,7 +114,7 @@ export abstract class Bot {
     }
 
     /**
-     * Upload file to a separate branch (with creation of this branch if it not exists yet)
+     * Upload file to a separate branch
      */
     async uploadFile({file, path, branch, commitMessage}: {
         /** buffer of the file */
@@ -127,8 +127,6 @@ export abstract class Bot {
         const {repo, owner} = this.context.repo();
         const content = file.toString('base64');
         const oldFileVersion = await this.getFileInfo(path, branch);
-
-        await this.createBranch(branch);
 
         return this.context.octokit.repos
             .createOrUpdateFileContents({
@@ -182,13 +180,17 @@ export class ArgusBot extends Bot {
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async uploadImage(file: Buffer, prNumber: number, imagePath: string) {
-        return this.uploadFile({
-            file,
-            path: `${this.getSavedImagePathPrefix(prNumber)}/${imagePath}`,
-            commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
-            branch: STORAGE_BRANCH,
-        });
+    async uploadImages(images: Buffer[], prNumber: number) {
+        await this.createBranch(STORAGE_BRANCH);
+
+        return Promise.all(images.map(
+            (file, index) => this.uploadFile({
+                file,
+                path: `${this.getSavedImagePathPrefix(prNumber)}/${index}.png`,
+                commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
+                branch: STORAGE_BRANCH,
+            })
+        ));
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {
