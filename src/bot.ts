@@ -1,13 +1,20 @@
 import {Context} from 'probot/lib/context';
 import {
     BOT_COMMIT_MESSAGE,
+    BOT_CONFIGS_FILE_NAME,
+    DEFAULT_BOT_CONFIGS,
     DEFAULT_MAIN_BRANCH,
     GITHUB_CDN_DOMAIN,
     IMAGES_STORAGE_FOLDER,
     STORAGE_BRANCH,
     TEST_REPORT_HIDDEN_LABEL,
 } from './constants';
-import {checkContainsHiddenLabel, markCommentWithHiddenLabel} from './utils';
+import {
+    checkContainsHiddenLabel,
+    markCommentWithHiddenLabel,
+    parseTomlFileBase64Str,
+} from './utils';
+import {IBotConfigs} from './types';
 
 export abstract class Bot {
     constructor(protected context: Context) {}
@@ -74,9 +81,12 @@ export abstract class Bot {
     };
 
     /**
-     * Get info about file by its path in the repository
+     * Get file (+ meta info about it) by its path in the repository
+     * @param path file location (from root of repo)
+     * @param branch target branch
+     * (it branch params is not provided it takes the repository’s default branch (usually master/main))
      */
-    async getFileInfo(path: string, branch: string = DEFAULT_MAIN_BRANCH) {
+    async getFile(path: string, branch?: string) {
         return this.context.octokit.repos.getContent({
             ...this.context.repo(),
             path,
@@ -126,7 +136,7 @@ export abstract class Bot {
     }): Promise<string> {
         const {repo, owner} = this.context.repo();
         const content = file.toString('base64');
-        const oldFileVersion = await this.getFileInfo(path, branch);
+        const oldFileVersion = await this.getFile(path, branch);
 
         return this.context.octokit.repos
             .createOrUpdateFileContents({
@@ -146,7 +156,7 @@ export abstract class Bot {
         commitMessage: string,
         branch: string
     }) {
-        const oldFileVersion = await this.getFileInfo(path, branch);
+        const oldFileVersion = await this.getFile(path, branch);
 
         if (!(oldFileVersion && 'sha' in oldFileVersion.data)) {
             return Promise.reject('the file is not found!');
@@ -163,6 +173,13 @@ export abstract class Bot {
 }
 
 export class ArgusBot extends Bot {
+    async loadBotConfigs(): Promise<IBotConfigs> {
+        return this.getFile(BOT_CONFIGS_FILE_NAME)
+            .then(res => res?.data && 'content' in res.data ? res.data.content : '')
+            .then(base64Str => parseTomlFileBase64Str<IBotConfigs>(base64Str))
+            .catch(() => DEFAULT_BOT_CONFIGS);
+    }
+
     async getPrevBotReportComment(prNumber: number) {
         const prComments = await this.getCommentsByIssueId(prNumber);
 
@@ -194,7 +211,7 @@ export class ArgusBot extends Bot {
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {
-        const folder = await this.getFileInfo(
+        const folder = await this.getFile(
             this.getSavedImagePathPrefix(prNumber),
             STORAGE_BRANCH
         );

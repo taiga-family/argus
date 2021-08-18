@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.5",
-    "probot": "^11.0.1"
+    "probot": "^11.0.1",
+    "toml": "^3.0.0"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.4.34",
