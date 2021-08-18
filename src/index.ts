@@ -7,7 +7,7 @@ import {
     getWorkflowRunConclusion,
     getWorkflowRunId
 } from './selectors';
-import {getFailureReport, getScreenshotDiffImages, zip} from './utils';
+import {getFailureReport, zip} from './utils';
 import {BOT_REPORT_MESSAGES} from './constants';
 
 export = (app: Probot) => {
@@ -32,7 +32,7 @@ export = (app: Probot) => {
 
                 /** TODO possibly there is a need to add timeout because at this time there are not always artifacts (test it!) */
                 const [artifact] = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
-                const images = getScreenshotDiffImages(artifact);
+                const images = await bot.getScreenshotDiffImages(artifact, workflowBranch);
                 const imagesUrls = await bot.uploadImages(images.map(image => image.getData()), prNumber);
 
                 const reportText = images.length

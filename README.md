@@ -29,9 +29,8 @@ workflowWithTests = [
   '.*test.*', # all workflows with sub-string "test" in their names will be watched by bot 
 ]
 
-# TODO add support of screenshotsDiffsPaths
-# array of regular expression strings to match images inside artifacts (by their path or file name)
-# which shows diffence between two screenshot and which will be added to bot report comment
+# array of RegExp strings to match images inside artifacts (by their path or file name)
+# which shows difference between two screenshot and which will be added to bot report comment
 screenshotsDiffsPaths = [
   '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
 ]

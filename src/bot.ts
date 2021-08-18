@@ -1,4 +1,5 @@
 import {Context} from 'probot/lib/context';
+import {IZipEntry} from 'adm-zip';
 import {
     BOT_COMMIT_MESSAGE,
     BOT_CONFIGS_FILE_NAME,
@@ -11,6 +12,7 @@ import {
 } from './constants';
 import {
     checkContainsHiddenLabel,
+    findScreenshotDiffImages,
     markCommentWithHiddenLabel,
     parseTomlFileBase64Str,
 } from './utils';
@@ -198,6 +200,14 @@ export class ArgusBot extends Bot {
         return oldBotComment?.id
             ? this.updateComment(oldBotComment.id, markedMarkdownText)
             : this.sendComment(prNumber, markedMarkdownText);
+    }
+
+    async getScreenshotDiffImages(zipFile: ArrayBuffer | Buffer, branch?: string): Promise<IZipEntry[]> {
+        if (!this.botConfigs) {
+            this.botConfigs = await this.loadBotConfigs(branch);
+        }
+
+        return findScreenshotDiffImages(zipFile, this.botConfigs.screenshotsDiffsPaths);
     }
 
     async uploadImages(images: Buffer[], prNumber: number) {
