@@ -1,3 +1,3 @@
 export interface IBotConfigs {
-    workflowWithTests: string[];
-};
+    workflowWithTests?: string[];
+}

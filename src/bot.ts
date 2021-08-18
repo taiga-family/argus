@@ -84,7 +84,7 @@ export abstract class Bot {
      * Get file (+ meta info about it) by its path in the repository
      * @param path file location (from root of repo)
      * @param branch target branch
-     * (it branch params is not provided it takes the repository’s default branch (usually master/main))
+     * (if branch param is not provided it takes the repository’s default branch (usually master/main))
      */
     async getFile(path: string, branch?: string) {
         return this.context.octokit.repos.getContent({
@@ -105,15 +105,16 @@ export abstract class Bot {
      * Create git branch in current repository (do nothing if branch already exists)
      * @param branch new branch name
      * @param fromBranch from which to create new branch
+     * (if branch param is not provided it tries to parse repository’s default branch or use {@link DEFAULT_MAIN_BRANCH})
      */
-    async createBranch(branch: string, fromBranch = DEFAULT_MAIN_BRANCH) {
+    async createBranch(branch: string, fromBranch?: string) {
         if (await this.getBranchInfo(branch)) {
             return;
         }
 
         const fromBranchInfo = await this.context.octokit.rest.repos.getBranch({
             ...this.context.repo(),
-            branch: fromBranch
+            branch: fromBranch || this.context.payload?.repository?.default_branch || DEFAULT_MAIN_BRANCH
         });
 
         return this.context.octokit.rest.git.createRef({
@@ -173,8 +174,10 @@ export abstract class Bot {
 }
 
 export class ArgusBot extends Bot {
-    async loadBotConfigs(): Promise<IBotConfigs> {
-        return this.getFile(BOT_CONFIGS_FILE_NAME)
+    private botConfigs: IBotConfigs | null = null;
+
+    async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
+        return this.getFile(BOT_CONFIGS_FILE_NAME, branch)
             .then(res => res?.data && 'content' in res.data ? res.data.content : '')
             .then(base64Str => parseTomlFileBase64Str<IBotConfigs>(base64Str))
             .catch(() => DEFAULT_BOT_CONFIGS);
@@ -208,6 +211,16 @@ export class ArgusBot extends Bot {
                 branch: STORAGE_BRANCH,
             })
         ));
+    }
+
+    async checkShouldSkipWorkflow(workflowName: string, workflowBranch?: string): Promise<boolean> {
+        if (!this.botConfigs) {
+            this.botConfigs = await this.loadBotConfigs(workflowBranch);
+        }
+
+        const workflowsWithTests = this.botConfigs.workflowWithTests || DEFAULT_BOT_CONFIGS.workflowWithTests;
+
+        return !workflowName || !workflowsWithTests.some(regExp => new RegExp(regExp, 'gi').test(workflowName));
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {

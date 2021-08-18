@@ -1,20 +1,24 @@
 import {Probot} from 'probot';
 import {ArgusBot} from './bot';
-import {getWorkflowPrNumbers, getWorkflowRunConclusion, getWorkflowRunId} from './selectors';
+import {
+    getWorkflowBranch,
+    getWorkflowName,
+    getWorkflowPrNumbers,
+    getWorkflowRunConclusion,
+    getWorkflowRunId
+} from './selectors';
 import {getFailureReport, getScreenshotDiffImages, zip} from './utils';
 import {BOT_REPORT_MESSAGES} from './constants';
-import {IBotConfigs} from './types';
-
-const reposConfigsStorage: Record<string, IBotConfigs> = {};
 
 export = (app: Probot) => {
     app.on('workflow_run.completed', async context => {
         const bot = new ArgusBot(context);
-        const {repo} = context.repo();
+        const workflowName = getWorkflowName(context);
+        const workflowBranch = getWorkflowBranch(context);
         const [prNumber] = getWorkflowPrNumbers(context);
 
-        if (!reposConfigsStorage[repo]) {
-            reposConfigsStorage[repo] = await bot.loadBotConfigs();
+        if (await bot.checkShouldSkipWorkflow(workflowName, workflowBranch)) {
+            return;
         }
 
         switch (getWorkflowRunConclusion(context)) {
@@ -48,7 +52,13 @@ export = (app: Probot) => {
      * */
     app.on('workflow_run.requested', async context => {
         const bot = new ArgusBot(context);
+        const workflowName = getWorkflowName(context);
+        const workflowBranch = getWorkflowBranch(context);
         const [prNumber] = getWorkflowPrNumbers(context);
+
+        if (await bot.checkShouldSkipWorkflow(workflowName, workflowBranch)) {
+            return;
+        }
 
         return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING_WORKFLOW);
     });

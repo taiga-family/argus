@@ -5,11 +5,12 @@
 - [X] refresh comment with loading status (if it exists) on _workflow_run.requested_
 - [X] listen closing/merge of PR and delete saved screenshots diff folder
 - [X] edit report when PR is closed (smth like: 'PR was closed and all saved screenshots deleted')
-- [ ] make configurable param (bot parse repo environments?) to detect
+- [X] make configurable param to detect
   after which workflow bot should look for artifacts zip with test screenshots
-  (parsing workflow name and find words with artifacts)
+  (parsing workflow name and skip workflows with no tests)
+- [ ] write **Bot configurations** in root README and describe about toml file and all defaults params
 - [ ] check all permissions again (with turning extra off) and update app.yml file
-- [ ] write **About Permissions** and describe why bot need every of them
+- [ ] write **About Permissions** in root README and describe why bot need every of them
 - [ ] deploy to glitch
 - [ ] test first draft of app
 
