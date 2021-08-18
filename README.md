@@ -16,23 +16,23 @@
 
 
 # Bot configurations
-Bot has configurable params which can unique for every Github repository.
+Bot has configurable params which can be unique for every Github repository.
 Every param is optional, and you can skip this section if default configuration satisfies you.
 
 To pass custom params for bot you should create `argus-configs.toml` file in the root directory.
 
-**Example of .toml file content** (you can paste it as it is) and **default values** of each param:
-```
+**Example of `argus-configs.toml` file content** (you can paste it as it is) and **default values** of each param:
+```yaml
 # array of regular expression strings to match workflow names
 # which should be watched by bot
 workflowWithTests = [
   '.*test.*', # all workflows with sub-string "test" in their names will be watched by bot 
 ]
 
-# TODO add screenshotsDiffsPaths
+# TODO add support of screenshotsDiffsPaths
 # array of regular expression strings to match images inside artifacts (by their path or file name)
 # which shows diffence between two screenshot and which will be added to bot report comment
-# screenshotsDiffsPaths = [
+screenshotsDiffsPaths = [
   '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
 ]
 
