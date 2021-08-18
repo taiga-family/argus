@@ -1,4 +1,5 @@
 # argus
+> A GitHub App built with [Probot](https://github.com/probot/probot) that TODO
 
 ## Roadmap
 - [X] edit already created message instead of new one's creation
@@ -15,8 +16,8 @@
 - [ ] test first draft of app
 
 
-# Bot configurations
-Bot has configurable params which can be unique for every Github repository.
+## Bot configurations
+Bot has configurable params which can be unique for every Github repository.<br>
 Every param is optional, and you can skip this section if default configuration satisfies you.
 
 To pass custom params for bot you should create `argus-configs.toml` file in the root directory.
@@ -38,7 +39,19 @@ screenshotsDiffsPaths = [
 # More configurable params will be added soon (if necessary)
 ```
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that TODO
+## About Permissions
+At the beginning of the bot's installation it asks for some permissions.<br>
+All of them are really needed, and we do not ask for more permissions than necessary.
+
+### Permissions
+Bot requires the following repository's **permissions**:
+- TODO
+- TODO
+
+### Events
+Bot listens to the following repository's **events**:
+- `pull_request` — bot listens to pull request closing to delete all saved screenshots for current closed PR.
+- `workflow_run` — bot listens to workflow completion to download artifacts and send tests report as PR comment.
 
 ## Setup
 
