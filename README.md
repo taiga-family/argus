@@ -1,20 +1,19 @@
-# argus
-> A GitHub App built with [Probot](https://github.com/probot/probot) that TODO
+# Argus
+**Argus** is a GitHub App built with [Probot](https://github.com/probot/probot)
+to watch for repository's workflows with tests, download artifacts with screenshots differences images,
+and pin these images to bot's comment of pull request.
 
-## Roadmap
-- [X] edit already created message instead of new one's creation
-- [X] refresh comment with loading status (if it exists) on _workflow_run.requested_
-- [X] listen closing/merge of PR and delete saved screenshots diff folder
-- [X] edit report when PR is closed (smth like: 'PR was closed and all saved screenshots deleted')
-- [X] make configurable param to detect
-  after which workflow bot should look for artifacts zip with test screenshots
-  (parsing workflow name and skip workflows with no tests)
-- [X] write **Bot configurations** in root README and describe about toml file and all defaults params
-- [ ] check all permissions again (with turning extra off) and update app.yml file
-- [ ] write **About Permissions** in root README and describe why bot need every of them
-- [ ] deploy to glitch
-- [ ] test first draft of app
+> **Why "Argus"?** Argus is a many-eyed  "all-seeing" giant in Greek mythology.
+> This character is known for having generated the saying "the eyes of Argus"
+> (being subject to strict scrutiny in one's actions to an invasive, distressing degree).
+> [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
+## What bot can do? :rocket:
+TODO:
+- reserve first comment place add loading state (+ screen)
+- edit already created comment and success state (+ screen)
+- edit already created comment and tests failure report (+ screen)
+- clean uploaded images after closing PR (+screen)
 
 ## Bot configurations :gear:
 Bot has configurable params which can be unique for every Github repository.<br>
