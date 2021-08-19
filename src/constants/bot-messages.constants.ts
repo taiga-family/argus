@@ -1,6 +1,10 @@
 export const BOT_REPORT_MESSAGES = {
-    LOADING_WORKFLOW: '# Tests are running :rocket:',
-    SUCCESS_WORKFLOW: '# Tests completed successfully :white_check_mark:',
+    LOADING_WORKFLOW: `
+# Tests are running :rocket:\n
+Wait for workflow run with tests to finish :coffee:`,
+    SUCCESS_WORKFLOW: `
+# Tests completed successfully :white_check_mark:\n
+Good job :fire:`,
     FAILED_WORKFLOW_NO_SCREENSHOTS: `
 # Workflow with tests failed :x:\n
 I have not found any screenshots diffs. Probably, workflow failed for another reason.\n
