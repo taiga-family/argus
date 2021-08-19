@@ -1,39 +1,23 @@
-## Contributing
+# Contributing
 
-[fork]: /fork
-[pr]: /compare
-[code-of-conduct]: CODE_OF_CONDUCT.md
+> Thank you for considering contributing to our project. Your help is very much appreciated!
 
-Hi there! We're thrilled that you'd like to contribute to this project. Your help is essential for keeping it great.
+When contributing, it's better to first discuss the change you wish to make via issue or discussion, or any other method with the owners of this repository before making a change.
 
-Please note that this project is released with a [Contributor Code of Conduct][code-of-conduct]. By participating in this project you agree to abide by its terms.
+All members of our community are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Please make sure you are welcoming and friendly in all of our spaces.
 
-## Issues and PRs
+## Getting started
 
-If you have suggestions for how this project could be improved, or want to report a bug, open an issue! We'd love all and any contributions. If you have questions, too, we'd love to hear them.
+In order to make your contribution please make a fork of the repository. After you've pulled
+the code, follow these steps to kick start the development:
 
-We'd also love PRs. If you're thinking of a large PR, we advise opening up an issue first to talk about it, though! Look at the links below if you're not sure how to open a PR.
+1. Run `npm ci` to install dependencies
+2. Run `build:watch`
+3. Run `npm start` and follow the [guide](https://probot.github.io/docs/development/#configuring-a-github-app)
 
-## Submitting a pull request
+## Pull Request Process
 
-1. [Fork][fork] and clone the repository.
-1. Configure and install the dependencies: `npm install`.
-1. Make sure the tests pass on your machine: `npm test`, note: these tests also apply the linter, so there's no need to lint separately.
-1. Create a new branch: `git checkout -b my-branch-name`.
-1. Make your change, add tests, and make sure the tests still pass.
-1. Push to your fork and [submit a pull request][pr].
-1. Pat your self on the back and wait for your pull request to be reviewed and merged.
-
-Here are a few things you can do that will increase the likelihood of your pull request being accepted:
-
-- Write and update tests.
-- Keep your changes as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
-- Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
-
-Work in Progress pull requests are also welcome to get feedback early on, or if there is something blocked you.
-
-## Resources
-
-- [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
-- [Using Pull Requests](https://help.github.com/articles/about-pull-requests/)
-- [GitHub Help](https://help.github.com)
+1. We follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/)
+   in our commit messages, i.e. `feat(core): improve typing`
+2. When you are ready, create Pull Request of your fork into original repository

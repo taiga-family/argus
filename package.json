@@ -15,8 +15,9 @@
     "screenshots"
   ],
   "scripts": {
-    "build": "tsc --watch",
+    "build:watch": "tsc --watch",
     "start": "probot run ./lib/index.js",
+    "build": "tsc",
     "test": "jest"
   },
   "dependencies": {
