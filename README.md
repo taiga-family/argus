@@ -45,8 +45,11 @@ All of them are really needed, and we do not ask for more permissions than neces
 
 #### Permissions
 Bot requires the following repository's **permissions**:
-- TODO
-- TODO
+- `actions: read` - to get list of workflow run artifacts and download these artifacts
+- `contents: write` - to create new branch for storage of screenshot diffs images
+and to ability to upload/delete these screenshot diffs images
+- `metadata: read` - mandatory for Github App
+- `pull_requests: write` - to create/edit PR's comment with bot's tests reports
 
 #### Events
 Bot listens to the following repository's **events**:
