@@ -16,7 +16,7 @@
 - [ ] test first draft of app
 
 
-## Bot configurations
+## Bot configurations :gear:
 Bot has configurable params which can be unique for every Github repository.<br>
 Every param is optional, and you can skip this section if default configuration satisfies you.
 
@@ -39,16 +39,16 @@ screenshotsDiffsPaths = [
 # More configurable params will be added soon (if necessary)
 ```
 
-## About Permissions
+## About Permissions :closed_lock_with_key:
 At the beginning of the bot's installation it asks for some permissions.<br>
 All of them are really needed, and we do not ask for more permissions than necessary.
 
-### Permissions
+#### Permissions
 Bot requires the following repository's **permissions**:
 - TODO
 - TODO
 
-### Events
+#### Events
 Bot listens to the following repository's **events**:
 - `pull_request` — bot listens to pull request closing to delete all saved screenshots for current closed PR.
 - `workflow_run` — bot listens to workflow completion to download artifacts and send tests report as PR comment.
