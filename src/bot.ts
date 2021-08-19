@@ -171,7 +171,8 @@ export abstract class Bot {
      *
      * This method uses github api endpoint:
      * - {@link https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents Create or update file contents}:
-     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints.
+     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
+     * (or **contents:write**).
      */
     async uploadFile({file, path, branch, commitMessage}: {
         /** buffer of the file */
@@ -203,7 +204,8 @@ export abstract class Bot {
      *
      * This method uses github api endpoint:
      * - {@link https://docs.github.com/en/rest/reference/repos#delete-a-file Delete a file}:
-     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints.
+     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
+     * (or **contents:write**).
      */
     async deleteFile({path, commitMessage, branch}: {
         path: string,

@@ -23,17 +23,9 @@ default_events:
 default_permissions:
   actions: read
 
-  # Checks on code.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-checks
-  checks: read
-
   # Repository contents, commits, branches, downloads, releases, and merges.
   # https://developer.github.com/v3/apps/permissions/#permission-on-contents
   contents: write
-
-  # Issues and related comments, assignees, labels, and milestones.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-issues
-  issues: write
 
   # Search repositories, list collaborators, and access repository metadata.
   # https://developer.github.com/v3/apps/permissions/#metadata-permissions
@@ -42,15 +34,6 @@ default_permissions:
   # Pull requests and related comments, assignees, labels, milestones, and merges.
   # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
   pull_requests: write
-
-  # Commit statuses.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-statuses
-  statuses: read
-
-  workflows: write
-  single_file: write
-
-singe_file_name: __argus-screenshots/*
 
 # The name of the GitHub App. Defaults to the name specified in package.json
 # name: My Probot App
