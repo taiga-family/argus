@@ -23,7 +23,13 @@ export abstract class Bot {
 
     /**
      * Send comment to the issue
-     * (pull request is the same issue but with code)
+     * (pull request is the same issue but with code).
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/issues#create-an-issue-comment Create an issue comment}:
+     * GitHub App must have the **issues:write**
+     * (or **pull_requests:write** if you are working only with PRs) permission to use this endpoints.
+     *
      * @param issueNumber
      * @param markdownText string (optionally, can include markdown syntax)
      */
@@ -37,7 +43,13 @@ export abstract class Bot {
     }
 
     /**
-     * Update certain comment in the issue (pull request is the same issue but with code)
+     * Update certain comment in the issue (pull request is the same issue but with code).
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/issues#update-an-issue-comment Update an issue comment}:
+     * GitHub App must have the **issues:write**
+     * (or **pull_requests:write** if you are working only with PRs) permission to use this endpoints.
+     *
      * @param commentId
      * @param newMarkdownContent string (optionally, can include markdown syntax)
      */
@@ -50,7 +62,12 @@ export abstract class Bot {
     }
 
     /**
-     * Get info about all comments in the current issue/PR
+     * Get info about all comments in the current issue/PR.
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/issues#list-issue-comments List issue comments}:
+     * GitHub App must have the **issues:read**
+     * (or **pull_requests:read** if you are working only with PRs) permission to use this endpoints.
      */
     async getCommentsByIssueId(issueNumber: number) {
         return this.context.octokit.rest.issues.listComments({
@@ -60,7 +77,13 @@ export abstract class Bot {
     }
 
     /**
-     * Download artifacts (zip files) in the workflow and unpack them
+     * Download artifacts (zip files) in the workflow and unpack them.
+     *
+     * This method uses two github api endpoints:
+     * - {@link https://docs.github.com/en/rest/reference/actions#list-workflow-run-artifacts List workflow run artifacts}
+     * - {@link https://docs.github.com/en/rest/reference/actions#download-an-artifact Download an artifact}
+     *
+     * GitHub App must have the **actions:read** permission to use these endpoints.
      */
     async getWorkflowArtifacts<T>(workflowRunId: number): Promise<T[]> {
         const workflowRunInfo = this.context.repo({
@@ -83,7 +106,12 @@ export abstract class Bot {
     };
 
     /**
-     * Get file (+ meta info about it) by its path in the repository
+     * Get file (+ meta info about it) by its path in the repository.
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/repos#get-repository-content Get repository content}:
+     * GitHub App must have the **contents:read** (or **single_file:read** to required files) permission to use this endpoints.
+     *
      * @param path file location (from root of repo)
      * @param branch target branch
      * (if branch param is not provided it takes the repository’s default branch (usually master/main))
@@ -97,14 +125,23 @@ export abstract class Bot {
     }
 
     /**
-     * Get info about git branch by its name
+     * Get info about git branch by its name.
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/repos#get-a-branch Get a branch}:
+     * GitHub App must have the **contents:read** permission to use this endpoints.
      */
     async getBranchInfo(branch: string) {
         return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
     }
 
     /**
-     * Create git branch in current repository (do nothing if branch already exists)
+     * Create git branch in current repository (do nothing if branch already exists).
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/git#create-a-reference Create a reference}:
+     * GitHub App must have the **contents:write** permission to use this endpoints.
+     *
      * @param branch new branch name
      * @param fromBranch from which to create new branch
      * (if branch param is not provided it tries to parse repository’s default branch or use {@link DEFAULT_MAIN_BRANCH})
@@ -114,10 +151,13 @@ export abstract class Bot {
             return;
         }
 
-        const fromBranchInfo = await this.context.octokit.rest.repos.getBranch({
-            ...this.context.repo(),
-            branch: fromBranch || this.context.payload?.repository?.default_branch || DEFAULT_MAIN_BRANCH
-        });
+        const fromBranchInfo = await this.getBranchInfo(
+            fromBranch || this.context.payload?.repository?.default_branch || DEFAULT_MAIN_BRANCH
+        );
+
+        if (!fromBranchInfo) {
+            return;
+        }
 
         return this.context.octokit.rest.git.createRef({
             ...this.context.repo(),
@@ -127,7 +167,11 @@ export abstract class Bot {
     }
 
     /**
-     * Upload file to a separate branch
+     * Upload file to a separate branch.
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents Create or update file contents}:
+     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints.
      */
     async uploadFile({file, path, branch, commitMessage}: {
         /** buffer of the file */
@@ -154,6 +198,13 @@ export abstract class Bot {
             .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`);
     }
 
+    /**
+     * Delete file in the following branch.
+     *
+     * This method uses github api endpoint:
+     * - {@link https://docs.github.com/en/rest/reference/repos#delete-a-file Delete a file}:
+     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints.
+     */
     async deleteFile({path, commitMessage, branch}: {
         path: string,
         commitMessage: string,

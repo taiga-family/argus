@@ -21,21 +21,15 @@ default_events:
 # the value (for example, write).
 # Valid values are `read`, `write`, and `none`
 default_permissions:
-  # Repository creation, deletion, settings, teams, and collaborators.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-administration
-  # administration: read
+  actions: read
 
   # Checks on code.
   # https://developer.github.com/v3/apps/permissions/#permission-on-checks
-  # checks: read
+  checks: read
 
   # Repository contents, commits, branches, downloads, releases, and merges.
   # https://developer.github.com/v3/apps/permissions/#permission-on-contents
-  # contents: read
-
-  # Deployments and deployment statuses.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-deployments
-  # deployments: read
+  contents: write
 
   # Issues and related comments, assignees, labels, and milestones.
   # https://developer.github.com/v3/apps/permissions/#permission-on-issues
@@ -45,53 +39,19 @@ default_permissions:
   # https://developer.github.com/v3/apps/permissions/#metadata-permissions
   metadata: read
 
-  # Retrieve Pages statuses, configuration, and builds, as well as create new builds.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-pages
-  # pages: read
-
   # Pull requests and related comments, assignees, labels, milestones, and merges.
   # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
-  # pull_requests: read
-
-  # Manage the post-receive hooks for a repository.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-repository-hooks
-  # repository_hooks: read
-
-  # Manage repository projects, columns, and cards.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-repository-projects
-  # repository_projects: read
-
-  # Retrieve security vulnerability alerts.
-  # https://developer.github.com/v4/object/repositoryvulnerabilityalert/
-  # vulnerability_alerts: read
+  pull_requests: write
 
   # Commit statuses.
   # https://developer.github.com/v3/apps/permissions/#permission-on-statuses
-  # statuses: read
+  statuses: read
 
-  # Organization members and teams.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-members
-  # members: read
+  workflows: write
+  single_file: write
 
-  # View and manage users blocked by the organization.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-organization-user-blocking
-  # organization_user_blocking: read
+singe_file_name: __argus-screenshots/*
 
-  # Manage organization projects, columns, and cards.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-organization-projects
-  # organization_projects: read
-
-  # Manage team discussions and related comments.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-team-discussions
-  # team_discussions: read
-
-  # Manage the post-receive hooks for an organization.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-organization-hooks
-  # organization_hooks: read
-
-  # Get notified of, and update, content references.
-  # https://developer.github.com/v3/apps/permissions/
-  # organization_administration: read
 # The name of the GitHub App. Defaults to the name specified in package.json
 # name: My Probot App
 
