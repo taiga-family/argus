@@ -36,14 +36,10 @@ default_permissions:
   pull_requests: write
 
 # The name of the GitHub App. Defaults to the name specified in package.json
-# name: My Probot App
+name: argus-bot
 
 # The homepage of your GitHub App.
-# url: https://example.com/
+url: https://github.com/apps/argus-bot
 
 # A description of the GitHub App.
-# description: A description of my awesome app
-
-# Set to true when your GitHub App is available to the public or false when it is only accessible to the owner of the app.
-# Default: true
-# public: false
+description: GitHub App to watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request.
