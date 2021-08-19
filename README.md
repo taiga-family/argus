@@ -9,11 +9,15 @@ and pin these images to bot's comment of pull request.
 > [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
 ## What bot can do? :rocket:
-TODO:
-- reserve first comment place add loading state (+ screen)
-- edit already created comment and success state (+ screen)
-- edit already created comment and tests failure report (+ screen)
-- clean uploaded images after closing PR (+screen)
+- Holds first PR comment.
+All workflow updates edit already existing bot comment.
+No endless stream of comments from bot!
+- Sets loading state comment when PR is opened or new commits were pushed to PR.
+![loading-demo](.demo/loading.png)
+- Downloads artifacts from workflow with tests, find screenshots diffs images, and pin them to tests failure report.
+![error-report-demo](.demo/error-report.png)
+- Removes all uploaded images (for current PR) after closing pull request.
+![closed-pr-demo](.demo/pr-closed.png)
 
 ## Bot configurations :gear:
 Bot has configurable params which can be unique for every Github repository.<br>
