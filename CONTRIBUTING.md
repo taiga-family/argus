@@ -13,8 +13,7 @@ In order to make your contribution please make a fork of the repository. After y
 the code, follow these steps to kick start the development:
 
 1. Run `npm ci` to install dependencies
-2. Run `build:watch`
-3. Run `npm start` and follow the [guide](https://probot.github.io/docs/development/#configuring-a-github-app)
+3. Run `npm run start:watch` and follow the [guide](https://probot.github.io/docs/development/#configuring-a-github-app)
 
 ## Pull Request Process
 
