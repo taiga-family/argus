@@ -1,0 +1,10 @@
+import { Context } from 'probot/lib/context';
+import { EventPayloads } from '@octokit/webhooks/dist-types/generated/event-payloads';
+declare type WorkflowRunContext = Context<EventPayloads.WebhookPayloadWorkflowRun>;
+export declare const getWorkflowName: (context: WorkflowRunContext) => string;
+export declare const getWorkflowBranch: (context: WorkflowRunContext) => string | undefined;
+export declare const getWorkflowPrNumbers: (context: WorkflowRunContext) => number[];
+declare type CheckRunConclusion = 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required' | 'stale';
+export declare const getWorkflowRunConclusion: (context: WorkflowRunContext) => CheckRunConclusion | null;
+export declare const getWorkflowRunId: (context: WorkflowRunContext) => number | null;
+export {};
