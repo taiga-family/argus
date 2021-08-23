@@ -263,13 +263,13 @@ export class ArgusBot extends Bot {
         return findScreenshotDiffImages(zipFile, this.botConfigs.screenshotsDiffsPaths);
     }
 
-    async uploadImages(images: Buffer[], prNumber: number) {
+    async uploadImages(images: Buffer[], prNumber: number, workflowRunId: number) {
         await this.createBranch(STORAGE_BRANCH);
 
         return Promise.all(images.map(
             (file, index) => this.uploadFile({
                 file,
-                path: `${this.getSavedImagePathPrefix(prNumber)}/${index}.png`,
+                path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${index}.png`,
                 commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
                 branch: STORAGE_BRANCH,
             })

@@ -30,10 +30,9 @@ export = (app: Probot) => {
 
                 if (!workflowRunId) return;
 
-                /** TODO possibly there is a need to add timeout because at this time there are not always artifacts (test it!) */
                 const [artifact] = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
                 const images = await bot.getScreenshotDiffImages(artifact, workflowBranch);
-                const imagesUrls = await bot.uploadImages(images.map(image => image.getData()), prNumber);
+                const imagesUrls = await bot.uploadImages(images.map(image => image.getData()), prNumber, workflowRunId);
 
                 const reportText = images.length
                     ? getFailureReport(zip(images, imagesUrls))
