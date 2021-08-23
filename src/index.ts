@@ -65,8 +65,9 @@ export = (app: Probot) => {
     app.on('pull_request.closed', async context => {
         const bot = new ArgusBot(context);
         const prNumber = context.payload.number;
+        const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
-        return bot.deleteUploadedImagesFolder(prNumber)
+        return oldBotComment?.id && bot.deleteUploadedImagesFolder(prNumber)
             .then(() => bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.PR_CLOSED));
     });
 };
