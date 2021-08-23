@@ -30,7 +30,7 @@ To pass custom params for bot you should create `argus-configs.toml` file in the
 # array of regular expression strings to match workflow names
 # which should be watched by bot
 workflowWithTests = [
-  '.*test.*', # all workflows with sub-string "test" in their names will be watched by bot 
+  '.*screenshot.*', # all workflows with sub-string "screenshot" in their names will be watched by bot 
 ]
 
 # array of RegExp strings to match images inside artifacts (by their path or file name)
