@@ -8,7 +8,7 @@ and pin these images to bot's comment of pull request.
 > (being subject to strict scrutiny in one's actions to an invasive, distressing degree).
 > [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
-## What bot can do? :rocket:
+## What bot can do? :bulb:
 - Holds first PR comment.
 All workflow updates edit already existing bot comment.
 No endless stream of comments from bot!
@@ -18,6 +18,18 @@ No endless stream of comments from bot!
 ![error-report-demo](.demo/error-report.png)
 - Removes all uploaded images (for current PR) after closing pull request.
 ![closed-pr-demo](.demo/pr-closed.png)
+
+## Setup :rocket:
+You can deploy your own bot using this code
+or use already hosted **[lumberjack-bot](https://github.com/apps/lumberjack-bot)**.
+
+>We actively use **lumberjack-bot** in our UI Kit library [Taiga UI](https://github.com/TinkoffCreditSystems/taiga-ui).
+It watches our taiga-components, and it can keep track of your repository too.
+Do not hesitate to integrate it in your project's development.
+
+To begin using bot:
+- Invite him to you repo.
+- See its [configurable params](#bot-configurations-gear) or use default ones.
 
 ## Bot configurations :gear:
 Bot has configurable params which can be unique for every Github repository.<br>
