@@ -28,7 +28,7 @@ It watches our taiga-components, and it can keep track of your repository too.
 Do not hesitate to integrate it in your project's development.
 
 To begin using bot:
-- Invite him to you repo.
+- [Invite](https://github.com/apps/lumberjack-bot/installations/new) him to you repo.
 - See its [configurable params](#bot-configurations-gear) or use default ones.
 
 ## Bot configurations :gear:
