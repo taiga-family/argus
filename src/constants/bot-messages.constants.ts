@@ -15,6 +15,6 @@ All saved screenshots (for current PR) were deleted :wastebasket:`,
 } as const;
 
 export const BOT_COMMIT_MESSAGE = {
-    UPLOAD_IMAGE: 'chore(argus): upload images of failed screenshot tests',
-    DELETE_FOLDER: 'chore(argus): delete saved screenshots (PR was closed)',
+    UPLOAD_IMAGE: 'chore: upload images of failed screenshot tests',
+    DELETE_FOLDER: 'chore: delete saved screenshots (PR was closed)',
 } as const;

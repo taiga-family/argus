@@ -36,10 +36,10 @@ default_permissions:
   pull_requests: write
 
 # The name of the GitHub App. Defaults to the name specified in package.json
-name: argus-bot
+name: lumberjack-bot
 
 # The homepage of your GitHub App.
-url: https://github.com/apps/argus-bot
+url: https://github.com/apps/lumberjack-bot
 
 # A description of the GitHub App.
 description: GitHub App to watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request.
