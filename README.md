@@ -23,9 +23,9 @@ No endless stream of comments from bot!
 Bot has configurable params which can be unique for every Github repository.<br>
 Every param is optional, and you can skip this section if default configuration satisfies you.
 
-To pass custom params for bot you should create `argus-configs.toml` file in the root directory of repository.
+To pass custom params for bot you should create `bot-configs.toml` file in the root directory of repository.
 
-**Example of `argus-configs.toml` file content** (you can paste it as it is) and **default values** of each param:
+**Example of `bot-configs.toml` file content** (you can paste it as it is) and **default values** of each param:
 ```yaml
 # array of regular expression strings to match workflow names
 # which should be watched by bot
