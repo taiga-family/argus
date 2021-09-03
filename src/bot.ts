@@ -228,7 +228,7 @@ export abstract class Bot {
     }
 }
 
-export class ArgusBot extends Bot {
+export class ScreenshotBot extends Bot {
     private botConfigs: IBotConfigs | null = null;
 
     async loadBotConfigs(branch?: string): Promise<IBotConfigs> {

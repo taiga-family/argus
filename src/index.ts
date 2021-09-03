@@ -1,5 +1,5 @@
 import {Probot} from 'probot';
-import {ArgusBot} from './bot';
+import {ScreenshotBot} from './bot';
 import {
     getWorkflowBranch,
     getWorkflowName,
@@ -12,7 +12,7 @@ import {BOT_REPORT_MESSAGES} from './constants';
 
 export = (app: Probot) => {
     app.on('workflow_run.completed', async context => {
-        const bot = new ArgusBot(context);
+        const bot = new ScreenshotBot(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const [prNumber] = getWorkflowPrNumbers(context);
@@ -50,7 +50,7 @@ export = (app: Probot) => {
      * see {@link https://github.com/actions/runner/issues/726 github issue}
      * */
     app.on('workflow_run.requested', async context => {
-        const bot = new ArgusBot(context);
+        const bot = new ScreenshotBot(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const [prNumber] = getWorkflowPrNumbers(context);
@@ -63,7 +63,7 @@ export = (app: Probot) => {
     });
 
     app.on('pull_request.closed', async context => {
-        const bot = new ArgusBot(context);
+        const bot = new ScreenshotBot(context);
         const prNumber = context.payload.number;
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
