@@ -8,17 +8,6 @@ and pin these images to bot's comment of pull request.
 > (being subject to strict scrutiny in one's actions to an invasive, distressing degree).
 > [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
-## What bot can do? :bulb:
-- Holds first PR comment.
-All workflow updates edit already existing bot comment.
-No endless stream of comments from bot!
-- Sets loading state comment when PR is opened or new commits are pushed to PR.
-![loading-demo](.demo/loading.png)
-- Downloads artifacts from workflow with tests, finds screenshots diffs images, and pins them to the tests failure report.
-![error-report-demo](.demo/error-report.png)
-- Removes all uploaded images (for current PR) after closing pull request.
-![closed-pr-demo](.demo/pr-closed.png)
-
 ## Setup :rocket:
 You can deploy your own bot using this code
 or use already hosted **[lumberjack-bot](https://github.com/apps/lumberjack-bot)**.
@@ -70,6 +59,17 @@ and to ability to upload/delete these screenshot diffs images.
 Bot listens to the following repository's **events**:
 - `pull_request` — bot listens to pull request closing to delete all saved screenshots for current closed PR.
 - `workflow_run` — bot listens to workflow completion to download artifacts and send tests report as PR comment.
+
+## What bot can do? :bulb:
+- Holds first PR comment.
+  All workflow updates edit already existing bot comment.
+  No endless stream of comments from bot!
+- Sets loading state comment when PR is opened or new commits are pushed to PR.
+  ![loading-demo](.demo/loading.png)
+- Downloads artifacts from workflow with tests, finds screenshots diffs images, and pins them to the tests failure report.
+  ![error-report-demo](.demo/error-report.png)
+- Removes all uploaded images (for current PR) after closing pull request.
+  ![closed-pr-demo](.demo/pr-closed.png)
 
 ## Contributing
 If you have suggestions for how bot could be improved, or want to report a bug, open an issue!
