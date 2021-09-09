@@ -78,5 +78,8 @@ We'd love all and any contributions.
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 ## License
+🆓 Feel free to use our bot in your commercial and private applications.
 
-[ISC](LICENSE) © 2021 Barsukov Nikita <nikita.s.barsukov@gmail.com>
+Bot is covered by [Apache 2.0](/LICENSE).
+
+Read more about this license [here](https://choosealicense.com/licenses/apache-2.0/).
