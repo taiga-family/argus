@@ -30,8 +30,8 @@ export = (app: Probot) => {
 
                 if (!workflowRunId) return;
 
-                const [artifact] = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
-                const images = await bot.getScreenshotDiffImages(artifact, workflowBranch);
+                const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
+                const images = await bot.getScreenshotDiffImages(artifacts, workflowBranch);
                 const imagesUrls = await bot.uploadImages(images.map(image => image.getData()), prNumber, workflowRunId);
 
                 const reportText = images.length

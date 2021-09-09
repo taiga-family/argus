@@ -92,9 +92,10 @@ export abstract class Bot {
 
         const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo)
             .catch(() => null);
+        const artifacts = artifactsInfo && artifactsInfo.data.artifacts || [];
 
-        if (artifactsInfo) {
-            const artifactsMetas = artifactsInfo.data.artifacts
+        if (artifacts.length) {
+            const artifactsMetas = artifacts
                 .map(({id}) => this.context.repo({artifact_id: id, archive_format: 'zip'}))
             const artifactsRequests = artifactsMetas
                 .map(meta => this.context.octokit.actions.downloadArtifact(meta).then(({data}) => data as T));
@@ -255,10 +256,20 @@ export class ScreenshotBot extends Bot {
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async getScreenshotDiffImages(zipFile: ArrayBuffer | Buffer, branch?: string): Promise<IZipEntry[]> {
+    async getScreenshotDiffImages(zipFiles: Array<ArrayBuffer | Buffer>, branch?: string): Promise<IZipEntry[]> {
+        if (!zipFiles.length) {
+            return Promise.resolve([]);
+        }
+
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(branch);
         }
+
+        /**
+         * TODO: add support of many artifacts per workflow
+         * {@link https://github.com/TinkoffCreditSystems/argus/issues/4 issue}
+         */
+        const [zipFile] = zipFiles;
 
         return findScreenshotDiffImages(zipFile, this.botConfigs.screenshotsDiffsPaths);
     }
