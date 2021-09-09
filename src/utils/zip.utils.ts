@@ -7,7 +7,10 @@ export function getFilesFromZipFile(zipFile: ArrayBuffer | Buffer): IZipEntry[] 
     return zip.getEntries().filter(entry => !entry.isDirectory);
 }
 
-// TODO add more images format
+/**
+ * TODO add more images format
+ * @link {@link https://github.com/TinkoffCreditSystems/argus/issues/5 Issue}
+ */
 function isImage(file: IZipEntry): boolean {
     return file.entryName.includes('.png');
 }
