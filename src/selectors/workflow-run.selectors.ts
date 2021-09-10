@@ -23,3 +23,7 @@ export const getWorkflowRunConclusion = (context: WorkflowRunContext): CheckRunC
 export const getWorkflowRunId = (context: WorkflowRunContext): number | null => {
     return context.payload.workflow_run?.id ?? null;
 }
+
+export const getWorkflowHeadSha = (context: WorkflowRunContext): string | null => {
+    return context.payload.workflow_run?.head_sha ?? null;
+}

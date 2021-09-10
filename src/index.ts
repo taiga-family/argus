@@ -3,7 +3,6 @@ import {ScreenshotBot} from './bot';
 import {
     getWorkflowBranch,
     getWorkflowName,
-    getWorkflowPrNumbers,
     getWorkflowRunConclusion,
     getWorkflowRunId
 } from './selectors';
@@ -15,9 +14,12 @@ export = (app: Probot) => {
         const bot = new ScreenshotBot(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        const [prNumber] = getWorkflowPrNumbers(context);
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
+            bot.getWorkflowPrNumber(),
+            bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
+        ]);
 
-        if (await bot.checkShouldSkipWorkflow(workflowName, workflowBranch)) {
+        if (!prNumber || shouldSkipWorkflow) {
             return;
         }
 
@@ -53,9 +55,12 @@ export = (app: Probot) => {
         const bot = new ScreenshotBot(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        const [prNumber] = getWorkflowPrNumbers(context);
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
+            bot.getWorkflowPrNumber(),
+            bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
+        ]);
 
-        if (await bot.checkShouldSkipWorkflow(workflowName, workflowBranch)) {
+        if (!prNumber || shouldSkipWorkflow) {
             return;
         }
 
