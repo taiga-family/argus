@@ -17,6 +17,7 @@ import {
     parseTomlFileBase64Str,
 } from './utils';
 import {IBotConfigs} from './types';
+import {getWorkflowHeadSha, getWorkflowPrNumbers} from './selectors';
 
 export abstract class Bot {
     constructor(protected context: Context) {}
@@ -24,13 +25,14 @@ export abstract class Bot {
     /**
      * Send comment to the issue
      * (pull request is the same issue but with code).
-     *
+     * ___
      * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/issues#create-an-issue-comment Create an issue comment}:
+     * {@link https://docs.github.com/en/rest/reference/issues#create-an-issue-comment Create an issue comment}.
+     *
      * GitHub App must have the **issues:write**
      * (or **pull_requests:write** if you are working only with PRs) permission to use this endpoints.
      *
-     * @param issueNumber
+     * @param issueNumber number
      * @param markdownText string (optionally, can include markdown syntax)
      */
     async sendComment(issueNumber: number, markdownText: string) {
@@ -44,13 +46,14 @@ export abstract class Bot {
 
     /**
      * Update certain comment in the issue (pull request is the same issue but with code).
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/issues#update-an-issue-comment Update an issue comment}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/issues#update-an-issue-comment Update an issue comment}:
      * GitHub App must have the **issues:write**
      * (or **pull_requests:write** if you are working only with PRs) permission to use this endpoints.
      *
-     * @param commentId
+     * @param commentId number
      * @param newMarkdownContent string (optionally, can include markdown syntax)
      */
     async updateComment(commentId: number, newMarkdownContent: string) {
@@ -63,9 +66,10 @@ export abstract class Bot {
 
     /**
      * Get info about all comments in the current issue/PR.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/issues#list-issue-comments List issue comments}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/issues#list-issue-comments List issue comments}:
      * GitHub App must have the **issues:read**
      * (or **pull_requests:read** if you are working only with PRs) permission to use this endpoints.
      */
@@ -78,7 +82,7 @@ export abstract class Bot {
 
     /**
      * Download artifacts (zip files) in the workflow and unpack them.
-     *
+     * ___
      * This method uses two github api endpoints:
      * - {@link https://docs.github.com/en/rest/reference/actions#list-workflow-run-artifacts List workflow run artifacts}
      * - {@link https://docs.github.com/en/rest/reference/actions#download-an-artifact Download an artifact}
@@ -108,9 +112,10 @@ export abstract class Bot {
 
     /**
      * Get file (+ meta info about it) by its path in the repository.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/repos#get-repository-content Get repository content}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/repos#get-repository-content Get repository content}:
      * GitHub App must have the **contents:read** (or **single_file:read** to required files) permission to use this endpoints.
      *
      * @param path file location (from root of repo)
@@ -127,9 +132,10 @@ export abstract class Bot {
 
     /**
      * Get info about git branch by its name.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/repos#get-a-branch Get a branch}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/repos#get-a-branch Get a branch}:
      * GitHub App must have the **contents:read** permission to use this endpoints.
      */
     async getBranchInfo(branch: string) {
@@ -138,9 +144,10 @@ export abstract class Bot {
 
     /**
      * Create git branch in current repository (do nothing if branch already exists).
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/git#create-a-reference Create a reference}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/git#create-a-reference Create a reference}:
      * GitHub App must have the **contents:write** permission to use this endpoints.
      *
      * @param branch new branch name
@@ -169,9 +176,10 @@ export abstract class Bot {
 
     /**
      * Upload file to a separate branch.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents Create or update file contents}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents Create or update file contents}:
      * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
      * (or **contents:write**).
      */
@@ -202,9 +210,10 @@ export abstract class Bot {
 
     /**
      * Delete file in the following branch.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/repos#delete-a-file Delete a file}.
      *
-     * This method uses github api endpoint:
-     * - {@link https://docs.github.com/en/rest/reference/repos#delete-a-file Delete a file}:
      * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
      * (or **contents:write**).
      */
@@ -226,6 +235,18 @@ export abstract class Bot {
             message: commitMessage,
             sha: oldFileVersion.data.sha,
         })
+    }
+
+    /**
+     * List pull requests.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/pulls#list-pull-requests List pull requests}.
+     *
+     * GitHub App must have the **pull_requests:read** permission to use this endpoints.
+     */
+    async getPRsList() {
+        return this.context.octokit.rest.pulls.list(this.context.repo());
     }
 }
 
@@ -314,6 +335,28 @@ export class ScreenshotBot extends Bot {
         }
 
         return null;
+    }
+
+    /**
+     * If it is contribution from forked repo,
+     * `workflow-run` event will always have `pull_requests` field as empty array.
+     * See this {@link https://github.community/t/pull-request-attribute-empty-in-workflow-run-event-object-for-pr-from-forked-repo/154682 issue}.
+     *
+     * In this case bot get PR number in another way (with help of addition API request).
+     */
+    async getWorkflowPrNumber(): Promise<number | null> {
+        const [prNumber] = getWorkflowPrNumbers(this.context);
+
+        if (typeof prNumber === 'number') {
+            // almost all cases (except for contribution via forked repo)
+            return prNumber;
+        }
+
+        const currentRepoPulls = await this.getPRsList().then(({data}) => data);
+        const headSha = getWorkflowHeadSha(this.context);
+        const contributionPR = currentRepoPulls.find(pr => pr.head.sha === headSha) || null;
+
+        return contributionPR && contributionPR.number;
     }
 
     private getSavedImagePathPrefix(prNumber: number): string {
