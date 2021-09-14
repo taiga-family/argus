@@ -1,7 +1,6 @@
 import {Probot} from 'probot';
 import {Context} from 'probot/lib/context';
 import {EventPayloads} from '@octokit/webhooks/dist-types/generated/event-payloads';
-import {ScreenshotBot} from './bot';
 import {
     getWorkflowBranch,
     getWorkflowName,
@@ -10,7 +9,7 @@ import {
 } from './selectors';
 import {getFailureReport, zip} from './utils';
 import {BOT_REPORT_MESSAGES} from './constants';
-import {SlackLogger} from './classes';
+import {ScreenshotBot, SlackLogger} from './classes';
 
 const REPOSITORY_EVENTS = {
     WORKFLOW_RUN_COMPLETED: 'workflow_run.completed',
