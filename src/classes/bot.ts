@@ -9,15 +9,15 @@ import {
     IMAGES_STORAGE_FOLDER,
     STORAGE_BRANCH,
     TEST_REPORT_HIDDEN_LABEL,
-} from './constants';
+} from '../constants';
 import {
     checkContainsHiddenLabel,
     findScreenshotDiffImages,
     markCommentWithHiddenLabel,
     parseTomlFileBase64Str,
-} from './utils';
-import {IBotConfigs} from './types';
-import {getWorkflowHeadSha, getWorkflowPrNumbers} from './selectors';
+} from '../utils';
+import {IBotConfigs} from '../types';
+import {getWorkflowHeadSha, getWorkflowPrNumbers} from '../selectors';
 
 export abstract class Bot {
     constructor(protected context: Context) {}
