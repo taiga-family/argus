@@ -8,6 +8,10 @@ and pin these images to bot's comment of pull request.
 > (being subject to strict scrutiny in one's actions to an invasive, distressing degree).
 > [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
+Read more about this Github App:
+- [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/its-tinkoff/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4) (English)
+- [«Боты должны работать, разработчики должны думать»: пишем Github App на Node.js](https://habr.com/ru/company/tinkoff/blog/580936/) (Russian)
+
 ## Setup :rocket:
 You can deploy your own bot using this code
 or use already hosted **[lumberjack-bot](https://github.com/apps/lumberjack-bot)**.
