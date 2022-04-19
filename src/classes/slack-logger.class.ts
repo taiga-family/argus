@@ -1,5 +1,5 @@
 import https from 'https';
-import {Context} from 'probot/lib/context';
+import {Context} from 'probot';
 
 const SLACK_MESSAGE_CHARS_LIMIT = 4000;
 
@@ -22,10 +22,10 @@ export class SlackLogger {
     }
 
     private buildErrorReport(step: string, context: Context, error: unknown): object {
-        /* Typescript-agnostic section: if smth goes wrong and we are here (we should not believe in any typing) */
+        /* @ts-ignore Typescript-agnostic section: if smth goes wrong and we are here (we should not believe in any typing) */
         const repoLink = context?.payload?.repository?.html_url || '';
         const repoEvent = context?.name || '';
-        const prs = (context?.payload?.workflow_run?.pull_requests || [])
+        const prs = ('workflow_run' in context?.payload ? (context?.payload?.workflow_run?.pull_requests || []) : [])
             .map((pr: any) => pr?.number);
         /* End of typescript-agnostic section */
 

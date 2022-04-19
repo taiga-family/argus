@@ -1,4 +1,5 @@
-import {Context} from 'probot/lib/context';
+import {Context} from 'probot';
+import {EmitterWebhookEventName} from '@octokit/webhooks';
 import {IZipEntry} from 'adm-zip';
 import {
     BOT_COMMIT_MESSAGE,
@@ -17,10 +18,10 @@ import {
     parseTomlFileBase64Str,
 } from '../utils';
 import {IBotConfigs} from '../types';
-import {getWorkflowHeadSha, getWorkflowPrNumbers} from '../selectors';
+import {getWorkflowHeadSha, getWorkflowPrNumbers, isWorkflowContext} from '../selectors';
 
-export abstract class Bot {
-    constructor(protected context: Context) {}
+export abstract class Bot<T extends EmitterWebhookEventName> {
+    constructor(protected context: Context<T>) {}
 
     /**
      * Send comment to the issue
@@ -159,8 +160,9 @@ export abstract class Bot {
             return;
         }
 
+        const currentRepoDefaultBranch = 'repository' in this.context.payload ? this.context.payload.repository?.default_branch : '';
         const fromBranchInfo = await this.getBranchInfo(
-            fromBranch || this.context.payload?.repository?.default_branch || DEFAULT_MAIN_BRANCH
+            fromBranch || currentRepoDefaultBranch || DEFAULT_MAIN_BRANCH
         );
 
         if (!fromBranchInfo) {
@@ -250,7 +252,7 @@ export abstract class Bot {
     }
 }
 
-export class ScreenshotBot extends Bot {
+export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: IBotConfigs | null = null;
 
     async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
@@ -345,6 +347,10 @@ export class ScreenshotBot extends Bot {
      * In this case bot get PR number in another way (with help of addition API request).
      */
     async getWorkflowPrNumber(): Promise<number | null> {
+        if (!isWorkflowContext(this.context)) {
+            return null;
+        }
+
         const [prNumber] = getWorkflowPrNumbers(this.context);
 
         if (typeof prNumber === 'number') {

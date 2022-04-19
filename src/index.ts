@@ -1,6 +1,4 @@
-import {Probot} from 'probot';
-import {Context} from 'probot/lib/context';
-import {EventPayloads} from '@octokit/webhooks/dist-types/generated/event-payloads';
+import {Probot, Context} from 'probot';
 import {
     getWorkflowBranch,
     getWorkflowName,
@@ -22,8 +20,8 @@ const REPOSITORY_EVENTS = {
 } as const;
 
 const EVENTS_CALLBACKS = {
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED]: async (context: Context<EventPayloads.WebhookPayloadWorkflowRun>) => {
-        const bot = new ScreenshotBot(context);
+    [REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED]: async (context: Context<'workflow_run.completed'>) => {
+        const bot = new ScreenshotBot<'workflow_run.completed'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
@@ -58,8 +56,8 @@ const EVENTS_CALLBACKS = {
                 return;
         }
     },
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED]: async (context: Context<EventPayloads.WebhookPayloadWorkflowRun>) => {
-        const bot = new ScreenshotBot(context);
+    [REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED]: async (context: Context<'workflow_run.requested'>) => {
+        const bot = new ScreenshotBot<'workflow_run.requested'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
@@ -73,8 +71,8 @@ const EVENTS_CALLBACKS = {
 
         return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING_WORKFLOW);
     },
-    [REPOSITORY_EVENTS.PR_CLOSED]: async (context: Context) => {
-        const bot = new ScreenshotBot(context);
+    [REPOSITORY_EVENTS.PR_CLOSED]: async (context: Context<'pull_request.closed'>) => {
+        const bot = new ScreenshotBot<'pull_request.closed'>(context);
         const prNumber = context.payload.number;
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
@@ -90,17 +88,20 @@ const logError = (step: string, context: Context, error: unknown) => {
 }
 
 export = (app: Probot) => {
-    [
-        REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED,
-        REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED,
-    ].forEach(event => {
-        app.on(event, async context => {
-            try {
-                await EVENTS_CALLBACKS[event](context);
-            } catch (err) {
-                await logError(event, context, err);
-            }
-        })
+    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, async context => {
+        try {
+            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED](context);
+        } catch (err) {
+            await logError(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, context, err);
+        }
+    });
+
+    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, async context => {
+        try {
+            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED](context);
+        } catch (err) {
+            await logError(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, context, err);
+        }
     });
 
     app.on(REPOSITORY_EVENTS.PR_CLOSED, async context => {
