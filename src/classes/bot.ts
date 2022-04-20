@@ -288,10 +288,15 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.botConfigs = await this.loadBotConfigs(branch);
         }
 
-        return zipFiles.reduce<IZipEntry[]>(
-            (acc, zipFile) => [...acc, ...findScreenshotDiffImages(zipFile, this.botConfigs?.screenshotsDiffsPaths)],
-            []
-        );
+        const screenshots = [];
+
+        for (const file of zipFiles) {
+            const images = findScreenshotDiffImages(file, this.botConfigs?.screenshotsDiffsPaths);
+
+            screenshots.push(...images);
+        }
+
+        return screenshots;
     }
 
     async uploadImages(images: Buffer[], prNumber: number, workflowRunId: number) {
