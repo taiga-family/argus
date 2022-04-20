@@ -1,5 +1,6 @@
 import https from 'https';
-import {Context} from 'probot/lib/context';
+import {Context} from 'probot';
+import {getWorkflowPrNumbers} from "../selectors";
 
 const SLACK_MESSAGE_CHARS_LIMIT = 4000;
 
@@ -22,12 +23,9 @@ export class SlackLogger {
     }
 
     private buildErrorReport(step: string, context: Context, error: unknown): object {
-        /* Typescript-agnostic section: if smth goes wrong and we are here (we should not believe in any typing) */
-        const repoLink = context?.payload?.repository?.html_url || '';
+        const repoLink = this.ensureRepoLink(context);
         const repoEvent = context?.name || '';
-        const prs = (context?.payload?.workflow_run?.pull_requests || [])
-            .map((pr: any) => pr?.number);
-        /* End of typescript-agnostic section */
+        const prs = this.ensurePRNumber(context);
 
         const divider = {type: "divider"};
 
@@ -83,5 +81,19 @@ export class SlackLogger {
             req.write(JSON.stringify(body));
             req.end();
         });
+    }
+
+    // Typescript-agnostic function: if smth goes wrong and we are here (we should not trust any types)
+    private ensurePRNumber(context: Context): number[] {
+        try {
+            return getWorkflowPrNumbers(context as unknown as Context<'workflow_run'>);
+        } catch {
+            return [];
+        }
+    }
+
+    // Typescript-agnostic function: if smth goes wrong and we are here (we should not trust any types)
+    private ensureRepoLink(context: Context): string {
+        return (context as unknown as any)?.payload?.repository?.html_url || '';
     }
 }
