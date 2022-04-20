@@ -1,6 +1,6 @@
-import {Context} from 'probot';
-import {EmitterWebhookEventName} from '@octokit/webhooks';
-import {IZipEntry} from 'adm-zip';
+import { Context } from 'probot';
+import { EmitterWebhookEventName } from '@octokit/webhooks';
+import { IZipEntry } from 'adm-zip';
 import {
     BOT_COMMIT_MESSAGE,
     BOT_CONFIGS_FILE_NAME,
@@ -17,8 +17,12 @@ import {
     markCommentWithHiddenLabel,
     parseTomlFileBase64Str,
 } from '../utils';
-import {IBotConfigs} from '../types';
-import {getWorkflowHeadSha, getWorkflowPrNumbers, isWorkflowContext} from '../selectors';
+import { IBotConfigs } from '../types';
+import {
+    getWorkflowHeadSha,
+    getWorkflowPrNumbers,
+    isWorkflowContext,
+} from '../selectors';
 
 export abstract class Bot<T extends EmitterWebhookEventName> {
     constructor(protected context: Context<T>) {}
@@ -75,10 +79,12 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * (or **pull_requests:read** if you are working only with PRs) permission to use this endpoints.
      */
     async getCommentsByIssueId(issueNumber: number) {
-        return this.context.octokit.rest.issues.listComments({
-            ...this.context.repo(),
-            issue_number: issueNumber,
-        }).then(({data}) => data);
+        return this.context.octokit.rest.issues
+            .listComments({
+                ...this.context.repo(),
+                issue_number: issueNumber,
+            })
+            .then(({ data }) => data);
     }
 
     /**
@@ -95,21 +101,26 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             run_id: workflowRunId,
         });
 
-        const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo)
+        const artifactsInfo = await this.context.octokit.actions
+            .listWorkflowRunArtifacts(workflowRunInfo)
             .catch(() => null);
-        const artifacts = artifactsInfo && artifactsInfo.data.artifacts || [];
+        const artifacts = (artifactsInfo && artifactsInfo.data.artifacts) || [];
 
         if (artifacts.length) {
-            const artifactsMetas = artifacts
-                .map(({id}) => this.context.repo({artifact_id: id, archive_format: 'zip'}))
-            const artifactsRequests = artifactsMetas
-                .map(meta => this.context.octokit.actions.downloadArtifact(meta).then(({data}) => data as T));
+            const artifactsMetas = artifacts.map(({ id }) =>
+                this.context.repo({ artifact_id: id, archive_format: 'zip' })
+            );
+            const artifactsRequests = artifactsMetas.map((meta) =>
+                this.context.octokit.actions
+                    .downloadArtifact(meta)
+                    .then(({ data }) => data as T)
+            );
 
             return Promise.all(artifactsRequests);
         }
 
         return [];
-    };
+    }
 
     /**
      * Get file (+ meta info about it) by its path in the repository.
@@ -124,11 +135,13 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * (if branch param is not provided it takes the repository’s default branch (usually master/main))
      */
     async getFile(path: string, branch?: string) {
-        return this.context.octokit.repos.getContent({
-            ...this.context.repo(),
-            path,
-            ref: branch
-        }).catch(() => null);
+        return this.context.octokit.repos
+            .getContent({
+                ...this.context.repo(),
+                path,
+                ref: branch,
+            })
+            .catch(() => null);
     }
 
     /**
@@ -140,7 +153,9 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * GitHub App must have the **contents:read** permission to use this endpoints.
      */
     async getBranchInfo(branch: string) {
-        return this.context.octokit.rest.repos.getBranch({...this.context.repo(), branch}).catch(() => null);
+        return this.context.octokit.rest.repos
+            .getBranch({ ...this.context.repo(), branch })
+            .catch(() => null);
     }
 
     /**
@@ -160,7 +175,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             return;
         }
 
-        const currentRepoDefaultBranch = 'repository' in this.context.payload ? this.context.payload.repository?.default_branch : '';
+        const currentRepoDefaultBranch =
+            'repository' in this.context.payload
+                ? this.context.payload.repository?.default_branch
+                : '';
         const fromBranchInfo = await this.getBranchInfo(
             fromBranch || currentRepoDefaultBranch || DEFAULT_MAIN_BRANCH
         );
@@ -185,15 +203,20 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
      * (or **contents:write**).
      */
-    async uploadFile({file, path, branch, commitMessage}: {
+    async uploadFile({
+        file,
+        path,
+        branch,
+        commitMessage,
+    }: {
         /** buffer of the file */
-        file: Buffer,
+        file: Buffer;
         /** path of future file (including file name + file format) */
-        path: string,
-        commitMessage: string,
-        branch: string
+        path: string;
+        commitMessage: string;
+        branch: string;
     }): Promise<string> {
-        const {repo, owner} = this.context.repo();
+        const { repo, owner } = this.context.repo();
         const content = file.toString('base64');
         const oldFileVersion = await this.getFile(path, branch);
 
@@ -204,10 +227,15 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
                 content,
                 path,
                 branch,
-                sha: oldFileVersion && 'sha' in oldFileVersion.data ? oldFileVersion.data.sha : undefined,
+                sha:
+                    oldFileVersion && 'sha' in oldFileVersion.data
+                        ? oldFileVersion.data.sha
+                        : undefined,
                 message: commitMessage,
             })
-            .then(() => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`);
+            .then(
+                () => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`
+            );
     }
 
     /**
@@ -219,10 +247,14 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
      * (or **contents:write**).
      */
-    async deleteFile({path, commitMessage, branch}: {
-        path: string,
-        commitMessage: string,
-        branch: string
+    async deleteFile({
+        path,
+        commitMessage,
+        branch,
+    }: {
+        path: string;
+        commitMessage: string;
+        branch: string;
     }) {
         const oldFileVersion = await this.getFile(path, branch);
 
@@ -236,7 +268,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             branch,
             message: commitMessage,
             sha: oldFileVersion.data.sha,
-        })
+        });
     }
 
     /**
@@ -257,29 +289,39 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
     async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
         return this.getFile(BOT_CONFIGS_FILE_NAME, branch)
-            .then(res => res?.data && 'content' in res.data ? res.data.content : '')
-            .then(base64Str => parseTomlFileBase64Str<IBotConfigs>(base64Str))
+            .then((res) =>
+                res?.data && 'content' in res.data ? res.data.content : ''
+            )
+            .then((base64Str) => parseTomlFileBase64Str<IBotConfigs>(base64Str))
             .catch(() => DEFAULT_BOT_CONFIGS);
     }
 
     async getPrevBotReportComment(prNumber: number) {
         const prComments = await this.getCommentsByIssueId(prNumber);
 
-        return prComments.find(
-            ({body}) => checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL)
-        ) || null;
+        return (
+            prComments.find(({ body }) =>
+                checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL)
+            ) || null
+        );
     }
 
     async createOrUpdateReport(prNumber: number, markdownText: string) {
         const oldBotComment = await this.getPrevBotReportComment(prNumber);
-        const markedMarkdownText = markCommentWithHiddenLabel(markdownText, TEST_REPORT_HIDDEN_LABEL);
+        const markedMarkdownText = markCommentWithHiddenLabel(
+            markdownText,
+            TEST_REPORT_HIDDEN_LABEL
+        );
 
         return oldBotComment?.id
             ? this.updateComment(oldBotComment.id, markedMarkdownText)
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async getScreenshotDiffImages(zipFiles: Array<ArrayBuffer | Buffer>, branch?: string): Promise<IZipEntry[]> {
+    async getScreenshotDiffImages(
+        zipFiles: Array<ArrayBuffer | Buffer>,
+        branch?: string
+    ): Promise<IZipEntry[]> {
         if (!zipFiles.length) {
             return Promise.resolve([]);
         }
@@ -291,7 +333,10 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         const screenshots = [];
 
         for (const file of zipFiles) {
-            const images = findScreenshotDiffImages(file, this.botConfigs?.screenshotsDiffsPaths);
+            const images = findScreenshotDiffImages(
+                file,
+                this.botConfigs?.screenshotsDiffsPaths
+            );
 
             screenshots.push(...images);
         }
@@ -299,27 +344,45 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         return screenshots;
     }
 
-    async uploadImages(images: Buffer[], prNumber: number, workflowRunId: number) {
+    async uploadImages(
+        images: Buffer[],
+        prNumber: number,
+        workflowRunId: number
+    ) {
         await this.createBranch(STORAGE_BRANCH);
 
-        return Promise.all(images.map(
-            (file, index) => this.uploadFile({
-                file,
-                path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${index}.png`,
-                commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
-                branch: STORAGE_BRANCH,
-            })
-        ));
+        return Promise.all(
+            images.map((file, index) =>
+                this.uploadFile({
+                    file,
+                    path: `${this.getSavedImagePathPrefix(
+                        prNumber
+                    )}/${workflowRunId}-${index}.png`,
+                    commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
+                    branch: STORAGE_BRANCH,
+                })
+            )
+        );
     }
 
-    async checkShouldSkipWorkflow(workflowName: string, workflowBranch?: string): Promise<boolean> {
+    async checkShouldSkipWorkflow(
+        workflowName: string,
+        workflowBranch?: string
+    ): Promise<boolean> {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
 
-        const workflowsWithTests = this.botConfigs.workflowWithTests || DEFAULT_BOT_CONFIGS.workflowWithTests;
+        const workflowsWithTests =
+            this.botConfigs.workflowWithTests ||
+            DEFAULT_BOT_CONFIGS.workflowWithTests;
 
-        return !workflowName || !workflowsWithTests.some(regExp => new RegExp(regExp, 'gi').test(workflowName));
+        return (
+            !workflowName ||
+            !workflowsWithTests.some((regExp) =>
+                new RegExp(regExp, 'gi').test(workflowName)
+            )
+        );
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {
@@ -330,11 +393,13 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
         if (folder && Array.isArray(folder.data)) {
             return Promise.all(
-                folder.data.map(({path}) => this.deleteFile({
-                    path,
-                    commitMessage: BOT_COMMIT_MESSAGE.DELETE_FOLDER,
-                    branch: STORAGE_BRANCH
-                }))
+                folder.data.map(({ path }) =>
+                    this.deleteFile({
+                        path,
+                        commitMessage: BOT_COMMIT_MESSAGE.DELETE_FOLDER,
+                        branch: STORAGE_BRANCH,
+                    })
+                )
             );
         }
 
@@ -360,15 +425,18 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             return prNumber;
         }
 
-        const currentRepoPulls = await this.getPRsList().then(({data}) => data);
+        const currentRepoPulls = await this.getPRsList().then(
+            ({ data }) => data
+        );
         const headSha = getWorkflowHeadSha(this.context);
-        const contributionPR = currentRepoPulls.find(pr => pr.head.sha === headSha) || null;
+        const contributionPR =
+            currentRepoPulls.find((pr) => pr.head.sha === headSha) || null;
 
         return contributionPR && contributionPR.number;
     }
 
     private getSavedImagePathPrefix(prNumber: number): string {
-        const {repo, owner} = this.context.repo();
+        const { repo, owner } = this.context.repo();
 
         return `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}-${prNumber}`;
     }

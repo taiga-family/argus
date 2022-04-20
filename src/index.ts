@@ -1,13 +1,13 @@
-import {Probot, Context} from 'probot';
+import { Probot, Context } from 'probot';
 import {
     getWorkflowBranch,
     getWorkflowName,
     getWorkflowRunConclusion,
-    getWorkflowRunId
+    getWorkflowRunId,
 } from './selectors';
-import {getFailureReport, zip} from './utils';
-import {BOT_REPORT_MESSAGES} from './constants';
-import {ScreenshotBot, SlackLogger} from './classes';
+import { getFailureReport, zip } from './utils';
+import { BOT_REPORT_MESSAGES } from './constants';
+import { ScreenshotBot, SlackLogger } from './classes';
 
 const REPOSITORY_EVENTS = {
     WORKFLOW_RUN_COMPLETED: 'workflow_run.completed',
@@ -20,7 +20,9 @@ const REPOSITORY_EVENTS = {
 } as const;
 
 const EVENTS_CALLBACKS = {
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED]: async (context: Context<'workflow_run.completed'>) => {
+    [REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED]: async (
+        context: Context<'workflow_run.completed'>
+    ) => {
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
@@ -35,16 +37,28 @@ const EVENTS_CALLBACKS = {
 
         switch (getWorkflowRunConclusion(context)) {
             case 'success':
-                return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.SUCCESS_WORKFLOW);
+                return bot.createOrUpdateReport(
+                    prNumber,
+                    BOT_REPORT_MESSAGES.SUCCESS_WORKFLOW
+                );
 
             case 'failure':
                 const workflowRunId = getWorkflowRunId(context);
 
                 if (!workflowRunId) return;
 
-                const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
-                const images = await bot.getScreenshotDiffImages(artifacts, workflowBranch);
-                const imagesUrls = await bot.uploadImages(images.map(image => image.getData()), prNumber, workflowRunId);
+                const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
+                    workflowRunId
+                );
+                const images = await bot.getScreenshotDiffImages(
+                    artifacts,
+                    workflowBranch
+                );
+                const imagesUrls = await bot.uploadImages(
+                    images.map((image) => image.getData()),
+                    prNumber,
+                    workflowRunId
+                );
 
                 const reportText = images.length
                     ? getFailureReport(zip(images, imagesUrls))
@@ -56,7 +70,9 @@ const EVENTS_CALLBACKS = {
                 return;
         }
     },
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED]: async (context: Context<'workflow_run.requested'>) => {
+    [REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED]: async (
+        context: Context<'workflow_run.requested'>
+    ) => {
         const bot = new ScreenshotBot<'workflow_run.requested'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
@@ -69,42 +85,68 @@ const EVENTS_CALLBACKS = {
             return;
         }
 
-        return bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.LOADING_WORKFLOW);
+        return bot.createOrUpdateReport(
+            prNumber,
+            BOT_REPORT_MESSAGES.LOADING_WORKFLOW
+        );
     },
-    [REPOSITORY_EVENTS.PR_CLOSED]: async (context: Context<'pull_request.closed'>) => {
+    [REPOSITORY_EVENTS.PR_CLOSED]: async (
+        context: Context<'pull_request.closed'>
+    ) => {
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
         const prNumber = context.payload.number;
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
-        return oldBotComment?.id && bot.deleteUploadedImagesFolder(prNumber)
-            .then(() => bot.createOrUpdateReport(prNumber, BOT_REPORT_MESSAGES.PR_CLOSED));
-    }
+        return (
+            oldBotComment?.id &&
+            bot
+                .deleteUploadedImagesFolder(prNumber)
+                .then(() =>
+                    bot.createOrUpdateReport(
+                        prNumber,
+                        BOT_REPORT_MESSAGES.PR_CLOSED
+                    )
+                )
+        );
+    },
 } as const;
 
 const logError = (step: string, context: Context, error: unknown) => {
     const slackLogger = new SlackLogger();
 
     return slackLogger.sendError(step, context, error);
-}
+};
 
 export = (app: Probot) => {
-    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, async context => {
+    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, async (context) => {
         try {
-            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED](context);
+            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED](
+                context
+            );
         } catch (err) {
-            await logError(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, context, err);
+            await logError(
+                REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED,
+                context,
+                err
+            );
         }
     });
 
-    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, async context => {
+    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, async (context) => {
         try {
-            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED](context);
+            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED](
+                context
+            );
         } catch (err) {
-            await logError(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, context, err);
+            await logError(
+                REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED,
+                context,
+                err
+            );
         }
     });
 
-    app.on(REPOSITORY_EVENTS.PR_CLOSED, async context => {
+    app.on(REPOSITORY_EVENTS.PR_CLOSED, async (context) => {
         try {
             await EVENTS_CALLBACKS[REPOSITORY_EVENTS.PR_CLOSED](context);
         } catch (err) {
