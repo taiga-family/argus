@@ -24,6 +24,8 @@
         "toml": "^3.0.0"
     },
     "devDependencies": {
+        "@tinkoff/eslint-config": "^1.31.1",
+        "@tinkoff/eslint-config-angular": "^1.31.1",
         "@tinkoff/prettier-config": "^1.32.1",
         "@types/adm-zip": "^0.4.34",
         "@types/node": "^14.14.19",
