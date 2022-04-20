@@ -288,13 +288,10 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.botConfigs = await this.loadBotConfigs(branch);
         }
 
-        /**
-         * TODO: add support of many artifacts per workflow
-         * {@link https://github.com/TinkoffCreditSystems/argus/issues/4 issue}
-         */
-        const [zipFile] = zipFiles;
-
-        return findScreenshotDiffImages(zipFile, this.botConfigs.screenshotsDiffsPaths);
+        return zipFiles.reduce<IZipEntry[]>(
+            (acc, zipFile) => [...acc, ...findScreenshotDiffImages(zipFile, this.botConfigs?.screenshotsDiffsPaths)],
+            []
+        );
     }
 
     async uploadImages(images: Buffer[], prNumber: number, workflowRunId: number) {
