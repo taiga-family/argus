@@ -1,4 +1,7 @@
-import { Probot, Context } from 'probot';
+import { Context, Probot } from 'probot';
+
+import { ScreenshotBot, SlackLogger } from './classes';
+import { BotReportMessage } from './constants';
 import {
     getWorkflowBranch,
     getWorkflowName,
@@ -6,21 +9,19 @@ import {
     getWorkflowRunId,
 } from './selectors';
 import { getFailureReport, zip } from './utils';
-import { BOT_REPORT_MESSAGES } from './constants';
-import { ScreenshotBot, SlackLogger } from './classes';
 
-const REPOSITORY_EVENTS = {
-    WORKFLOW_RUN_COMPLETED: 'workflow_run.completed',
+const enum RepositoryEvent {
+    WorkflowRunCompleted = 'workflow_run.completed',
     /**
      * WARNING: "Re-run all jobs" button does not trigger worklow_run.requested event
      * see {@link https://github.com/actions/runner/issues/726 github issue}
      * */
-    WORKFLOW_RUN_REQUESTED: 'workflow_run.requested',
-    PR_CLOSED: 'pull_request.closed',
-} as const;
+    WorkflowRunRequested = 'workflow_run.requested',
+    PRClosed = 'pull_request.closed',
+}
 
 const EVENTS_CALLBACKS = {
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED]: async (
+    [RepositoryEvent.WorkflowRunCompleted]: async (
         context: Context<'workflow_run.completed'>
     ) => {
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
@@ -35,42 +36,37 @@ const EVENTS_CALLBACKS = {
             return;
         }
 
-        switch (getWorkflowRunConclusion(context)) {
-            case 'success':
-                return bot.createOrUpdateReport(
-                    prNumber,
-                    BOT_REPORT_MESSAGES.SUCCESS_WORKFLOW
-                );
-
-            case 'failure':
-                const workflowRunId = getWorkflowRunId(context);
-
-                if (!workflowRunId) return;
-
-                const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
-                    workflowRunId
-                );
-                const images = await bot.getScreenshotDiffImages(
-                    artifacts,
-                    workflowBranch
-                );
-                const imagesUrls = await bot.uploadImages(
-                    images.map((image) => image.getData()),
-                    prNumber,
-                    workflowRunId
-                );
-
-                const reportText = images.length
-                    ? getFailureReport(zip(images, imagesUrls))
-                    : BOT_REPORT_MESSAGES.FAILED_WORKFLOW_NO_SCREENSHOTS;
-
-                return bot.createOrUpdateReport(prNumber, reportText);
-
-            default:
-                return;
+        if (getWorkflowRunConclusion(context) === 'success') {
+            return bot.createOrUpdateReport(
+                prNumber,
+                BotReportMessage.SuccessWorkflow
+            );
         }
+
+        const workflowRunId = getWorkflowRunId(context);
+
+        if (!workflowRunId) return;
+
+        const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
+            workflowRunId
+        );
+        const images = await bot.getScreenshotDiffImages(
+            artifacts,
+            workflowBranch
+        );
+        const imagesUrls = await bot.uploadImages(
+            images.map((image) => image.getData()),
+            prNumber,
+            workflowRunId
+        );
+
+        const reportText = images.length
+            ? getFailureReport(zip(images, imagesUrls))
+            : BotReportMessage.FailedWorkflowNoScreenshots;
+
+        return bot.createOrUpdateReport(prNumber, reportText);
     },
-    [REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED]: async (
+    [RepositoryEvent.WorkflowRunRequested]: async (
         context: Context<'workflow_run.requested'>
     ) => {
         const bot = new ScreenshotBot<'workflow_run.requested'>(context);
@@ -87,10 +83,10 @@ const EVENTS_CALLBACKS = {
 
         return bot.createOrUpdateReport(
             prNumber,
-            BOT_REPORT_MESSAGES.LOADING_WORKFLOW
+            BotReportMessage.LoadingWorkflow
         );
     },
-    [REPOSITORY_EVENTS.PR_CLOSED]: async (
+    [RepositoryEvent.PRClosed]: async (
         context: Context<'pull_request.closed'>
     ) => {
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
@@ -104,7 +100,7 @@ const EVENTS_CALLBACKS = {
                 .then(() =>
                     bot.createOrUpdateReport(
                         prNumber,
-                        BOT_REPORT_MESSAGES.PR_CLOSED
+                        BotReportMessage.PRClosed
                     )
                 )
         );
@@ -118,39 +114,31 @@ const logError = (step: string, context: Context, error: unknown) => {
 };
 
 export = (app: Probot) => {
-    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED, async (context) => {
+    app.on(RepositoryEvent.WorkflowRunRequested, async (context) => {
         try {
-            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED](
+            await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](
                 context
             );
         } catch (err) {
-            await logError(
-                REPOSITORY_EVENTS.WORKFLOW_RUN_REQUESTED,
-                context,
-                err
-            );
+            await logError(RepositoryEvent.WorkflowRunRequested, context, err);
         }
     });
 
-    app.on(REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED, async (context) => {
+    app.on(RepositoryEvent.WorkflowRunCompleted, async (context) => {
         try {
-            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED](
+            await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunCompleted](
                 context
             );
         } catch (err) {
-            await logError(
-                REPOSITORY_EVENTS.WORKFLOW_RUN_COMPLETED,
-                context,
-                err
-            );
+            await logError(RepositoryEvent.WorkflowRunCompleted, context, err);
         }
     });
 
-    app.on(REPOSITORY_EVENTS.PR_CLOSED, async (context) => {
+    app.on(RepositoryEvent.PRClosed, async (context) => {
         try {
-            await EVENTS_CALLBACKS[REPOSITORY_EVENTS.PR_CLOSED](context);
+            await EVENTS_CALLBACKS[RepositoryEvent.PRClosed](context);
         } catch (err) {
-            await logError(REPOSITORY_EVENTS.PR_CLOSED, context, err);
+            await logError(RepositoryEvent.PRClosed, context, err);
         }
     });
 };

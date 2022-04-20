@@ -1,9 +1,12 @@
-import { Context } from 'probot';
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import { EmitterWebhookEventName } from '@octokit/webhooks';
 import { IZipEntry } from 'adm-zip';
+import { Context } from 'probot';
+
 import {
-    BOT_COMMIT_MESSAGE,
     BOT_CONFIGS_FILE_NAME,
+    BotCommitMessage,
     DEFAULT_BOT_CONFIGS,
     DEFAULT_MAIN_BRANCH,
     GITHUB_CDN_DOMAIN,
@@ -12,17 +15,17 @@ import {
     TEST_REPORT_HIDDEN_LABEL,
 } from '../constants';
 import {
+    getWorkflowHeadSha,
+    getWorkflowPrNumbers,
+    isWorkflowContext,
+} from '../selectors';
+import { IBotConfigs } from '../types';
+import {
     checkContainsHiddenLabel,
     findScreenshotDiffImages,
     markCommentWithHiddenLabel,
     parseTomlFileBase64Str,
 } from '../utils';
-import { IBotConfigs } from '../types';
-import {
-    getWorkflowHeadSha,
-    getWorkflowPrNumbers,
-    isWorkflowContext,
-} from '../selectors';
 
 export abstract class Bot<T extends EmitterWebhookEventName> {
     constructor(protected context: Context<T>) {}
@@ -96,7 +99,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      *
      * GitHub App must have the **actions:read** permission to use these endpoints.
      */
-    async getWorkflowArtifacts<T>(workflowRunId: number): Promise<T[]> {
+    async getWorkflowArtifacts<F>(workflowRunId: number): Promise<F[]> {
         const workflowRunInfo = this.context.repo({
             run_id: workflowRunId,
         });
@@ -113,7 +116,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             const artifactsRequests = artifactsMetas.map((meta) =>
                 this.context.octokit.actions
                     .downloadArtifact(meta)
-                    .then(({ data }) => data as T)
+                    .then(({ data }) => data as F)
             );
 
             return Promise.all(artifactsRequests);
@@ -259,7 +262,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         const oldFileVersion = await this.getFile(path, branch);
 
         if (!(oldFileVersion && 'sha' in oldFileVersion.data)) {
-            return Promise.reject('the file is not found!');
+            throw new Error('the file is not found!');
         }
 
         return this.context.octokit.rest.repos.deleteFile({
@@ -358,7 +361,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                     path: `${this.getSavedImagePathPrefix(
                         prNumber
                     )}/${workflowRunId}-${index}.png`,
-                    commitMessage: BOT_COMMIT_MESSAGE.UPLOAD_IMAGE,
+                    commitMessage: BotCommitMessage.UploadImage,
                     branch: STORAGE_BRANCH,
                 })
             )
@@ -396,7 +399,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 folder.data.map(({ path }) =>
                     this.deleteFile({
                         path,
-                        commitMessage: BOT_COMMIT_MESSAGE.DELETE_FOLDER,
+                        commitMessage: BotCommitMessage.DeleteFolder,
                         branch: STORAGE_BRANCH,
                     })
                 )
@@ -441,3 +444,4 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         return `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}-${prNumber}`;
     }
 }
+/* eslint-enable @typescript-eslint/naming-convention */
