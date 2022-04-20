@@ -1,6 +1,6 @@
 import https from 'https';
-import {Context} from 'probot';
-import {getWorkflowPrNumbers} from "../selectors";
+import { Context } from 'probot';
+import { getWorkflowPrNumbers } from '../selectors';
 
 const SLACK_MESSAGE_CHARS_LIMIT = 4000;
 
@@ -22,43 +22,53 @@ export class SlackLogger {
         }
     }
 
-    private buildErrorReport(step: string, context: Context, error: unknown): object {
+    private buildErrorReport(
+        step: string,
+        context: Context,
+        error: unknown
+    ): object {
         const repoLink = this.ensureRepoLink(context);
         const repoEvent = context?.name || '';
         const prs = this.ensurePRNumber(context);
 
-        const divider = {type: "divider"};
+        const divider = { type: 'divider' };
 
         return {
             blocks: [
                 {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "I got an error :x:",
-                        "emoji": true
-                    }
+                    type: 'header',
+                    text: {
+                        type: 'plain_text',
+                        text: 'I got an error :x:',
+                        emoji: true,
+                    },
                 },
                 divider,
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": `*Step*: ${step}\n*Repository Event*: ${repoEvent}\n*Repository Link*: ${repoLink}\n*Pull Requests*: ${JSON.stringify(prs)}`
-                    }
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `*Step*: ${step}\n*Repository Event*: ${repoEvent}\n*Repository Link*: ${repoLink}\n*Pull Requests*: ${JSON.stringify(
+                            prs
+                        )}`,
+                    },
                 },
                 divider,
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": '*Error:*\n```'
-                            + JSON.stringify(error, Object.getOwnPropertyNames(error)).slice(0, SLACK_MESSAGE_CHARS_LIMIT - 1000)
-                            + '```'
-                    }
-                }
-            ]
-        }
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text:
+                            '*Error:*\n```' +
+                            JSON.stringify(
+                                error,
+                                Object.getOwnPropertyNames(error)
+                            ).slice(0, SLACK_MESSAGE_CHARS_LIMIT - 1000) +
+                            '```',
+                    },
+                },
+            ],
+        };
     }
 
     private async sendPostRequest(url: string, body: object) {
@@ -66,14 +76,14 @@ export class SlackLogger {
             const requestOptions = {
                 method: 'POST',
                 header: {
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                },
             };
 
             const req = https.request(url, requestOptions, (res) => {
                 let response = '';
 
-                res.on('data', (d) => response += d);
+                res.on('data', (d) => (response += d));
                 res.on('end', () => resolve(response));
             });
 
@@ -86,7 +96,9 @@ export class SlackLogger {
     // Typescript-agnostic function: if smth goes wrong and we are here (we should not trust any types)
     private ensurePRNumber(context: Context): number[] {
         try {
-            return getWorkflowPrNumbers(context as unknown as Context<'workflow_run'>);
+            return getWorkflowPrNumbers(
+                context as unknown as Context<'workflow_run'>
+            );
         } catch {
             return [];
         }

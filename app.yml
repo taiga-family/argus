@@ -13,27 +13,27 @@
 # The list of events the GitHub App subscribes to.
 # Uncomment the event names below to enable them.
 default_events:
-  - pull_request
-  - workflow_run
+    - pull_request
+    - workflow_run
 
 # The set of permissions needed by the GitHub App. The format of the object uses
 # the permission name for the key (for example, issues) and the access type for
 # the value (for example, write).
 # Valid values are `read`, `write`, and `none`
 default_permissions:
-  actions: read
+    actions: read
 
-  # Repository contents, commits, branches, downloads, releases, and merges.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-contents
-  contents: write
+    # Repository contents, commits, branches, downloads, releases, and merges.
+    # https://developer.github.com/v3/apps/permissions/#permission-on-contents
+    contents: write
 
-  # Search repositories, list collaborators, and access repository metadata.
-  # https://developer.github.com/v3/apps/permissions/#metadata-permissions
-  metadata: read
+    # Search repositories, list collaborators, and access repository metadata.
+    # https://developer.github.com/v3/apps/permissions/#metadata-permissions
+    metadata: read
 
-  # Pull requests and related comments, assignees, labels, milestones, and merges.
-  # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
-  pull_requests: write
+    # Pull requests and related comments, assignees, labels, milestones, and merges.
+    # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
+    pull_requests: write
 
 # The name of the GitHub App. Defaults to the name specified in package.json
 name: lumberjack-bot
