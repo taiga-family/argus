@@ -1,5 +1,6 @@
 import https from 'https';
 import { Context } from 'probot';
+
 import { getWorkflowPrNumbers } from '../selectors';
 
 const SLACK_MESSAGE_CHARS_LIMIT = 4000;
@@ -26,7 +27,7 @@ export class SlackLogger {
         step: string,
         context: Context,
         error: unknown
-    ): object {
+    ): Record<string, unknown> {
         const repoLink = this.ensureRepoLink(context);
         const repoEvent = context?.name || '';
         const prs = this.ensurePRNumber(context);
@@ -58,24 +59,22 @@ export class SlackLogger {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text:
-                            '*Error:*\n```' +
-                            JSON.stringify(
-                                error,
-                                Object.getOwnPropertyNames(error)
-                            ).slice(0, SLACK_MESSAGE_CHARS_LIMIT - 1000) +
-                            '```',
+                        text: `*Error:*\n\`\`\`${JSON.stringify(
+                            error,
+                            Object.getOwnPropertyNames(error)
+                        ).slice(0, SLACK_MESSAGE_CHARS_LIMIT - 1000)}\`\`\``,
                     },
                 },
             ],
         };
     }
 
-    private async sendPostRequest(url: string, body: object) {
+    private async sendPostRequest(url: string, body: Record<string, any>) {
         return new Promise((resolve, reject) => {
             const requestOptions = {
                 method: 'POST',
                 header: {
+                    // eslint-disable-next-line @typescript-eslint/naming-convention
                     'Content-Type': 'application/json',
                 },
             };
@@ -83,7 +82,9 @@ export class SlackLogger {
             const req = https.request(url, requestOptions, (res) => {
                 let response = '';
 
-                res.on('data', (d) => (response += d));
+                res.on('data', (d) => {
+                    response += d;
+                });
                 res.on('end', () => resolve(response));
             });
 
