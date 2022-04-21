@@ -1,9 +1,11 @@
+import { IZipEntry } from 'adm-zip';
 import { Context, Probot } from 'probot';
 
 import { ScreenshotBot, SlackLogger } from './classes';
 import { BotReportMessage } from './constants';
 import {
     getWorkflowBranch,
+    getWorkflowHeadSha,
     getWorkflowName,
     getWorkflowRunConclusion,
     getWorkflowRunId,
@@ -27,6 +29,7 @@ const EVENTS_CALLBACKS = {
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
+        const commitSha = getWorkflowHeadSha(context) || '';
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
@@ -50,19 +53,28 @@ const EVENTS_CALLBACKS = {
         const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
             workflowRunId
         );
-        const images = await bot.getScreenshotDiffImages(
+        const failedTestsImages = await bot.getScreenshotDiffImages(
             artifacts,
             workflowBranch
         );
-        const imagesUrls = await bot.uploadImages(
-            images.map((image) => image.getData()),
+        const failedTestsImagesUrls = await bot.uploadImages(
+            failedTestsImages.map((image) => image.getData()),
             prNumber,
             workflowRunId
         );
 
-        const reportText = images.length
-            ? getFailureReport(zip(images, imagesUrls))
-            : BotReportMessage.FailedWorkflowNoScreenshots;
+        // TODO finish it later
+        const newTestsImages: IZipEntry[] = [];
+        const newTestsImagesUrls: string[] = [];
+
+        const reportText =
+            failedTestsImages.length || newTestsImages.length
+                ? getFailureReport(
+                      zip(failedTestsImages, failedTestsImagesUrls),
+                      zip(newTestsImages, newTestsImagesUrls),
+                      { commitSha }
+                  )
+                : BotReportMessage.FailedWorkflowNoScreenshots;
 
         return bot.createOrUpdateReport(prNumber, reportText);
     },
