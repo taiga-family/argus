@@ -24,6 +24,7 @@
         "toml": "^3.0.0"
     },
     "devDependencies": {
+        "@octokit/types": "^6.34.0",
         "@tinkoff/eslint-config": "^1.31.1",
         "@tinkoff/eslint-config-angular": "^1.31.1",
         "@tinkoff/prettier-config": "^1.32.1",
@@ -35,7 +36,7 @@
         "wait-on": "^6.0.0"
     },
     "engines": {
-        "node": ">= 14",
+        "node": "16.x.x",
         "npm": ">= 7",
         "yarn": "Please use npm instead of yarn to install dependencies"
     }
