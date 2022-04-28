@@ -32,3 +32,15 @@ export function findScreenshotDiffImages(
         )
         .filter(isImage);
 }
+
+export function findNewScreenshotImages(
+    zipFile: ArrayBuffer | Buffer,
+    newScreenshotMark?: string
+) {
+    return getFilesFromZipFile(zipFile).filter((file) =>
+        new RegExp(
+            newScreenshotMark || DEFAULT_BOT_CONFIGS.newScreenshotMark,
+            'gi'
+        ).test(file.entryName)
+    );
+}

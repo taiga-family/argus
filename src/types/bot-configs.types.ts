@@ -9,4 +9,9 @@ export interface IBotConfigs {
      * which shows difference between two screenshot and which will be added to bot report comment
      */
     screenshotsDiffsPaths?: string[];
+    /**
+     * Regular expression string to match images inside artifacts (by their path or file name)
+     * which are created by new screenshot tests.
+     */
+    newScreenshotMark?: string;
 }
