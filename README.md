@@ -50,6 +50,11 @@ screenshotsDiffsPaths = [
   '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
 ]
 
+
+# Regular expression string to match images inside artifacts (by their path or file name)
+# which are created by new screenshot tests.
+newScreenshotMark = '.*==new==.*'
+
 # More configurable params will be added soon (if necessary)
 ```
 

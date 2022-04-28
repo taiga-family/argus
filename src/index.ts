@@ -63,9 +63,15 @@ const EVENTS_CALLBACKS = {
             workflowRunId
         );
 
-        // TODO finish it later
-        const newTestsImages: IZipEntry[] = [];
-        const newTestsImagesUrls: string[] = [];
+        const newTestsImages: IZipEntry[] = await bot.getNewScreenshotImages(
+            artifacts,
+            workflowBranch
+        );
+        const newTestsImagesUrls: string[] = await bot.uploadImages(
+            newTestsImages.map((image) => image.getData()),
+            prNumber,
+            workflowRunId
+        );
 
         const reportText =
             failedTestsImages.length || newTestsImages.length

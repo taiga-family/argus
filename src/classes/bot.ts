@@ -22,6 +22,7 @@ import {
 import { IBotConfigs } from '../types';
 import {
     checkContainsHiddenLabel,
+    findNewScreenshotImages,
     findScreenshotDiffImages,
     markCommentWithHiddenLabel,
     parseTomlFileBase64Str,
@@ -321,8 +322,9 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async getScreenshotDiffImages(
+    async getImagesByFn(
         zipFiles: Array<ArrayBuffer | Buffer>,
+        fn: (zipFile: ArrayBuffer | Buffer) => IZipEntry[],
         branch?: string
     ): Promise<IZipEntry[]> {
         if (!zipFiles.length) {
@@ -336,15 +338,38 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         const screenshots = [];
 
         for (const file of zipFiles) {
-            const images = findScreenshotDiffImages(
-                file,
-                this.botConfigs?.screenshotsDiffsPaths
-            );
+            const images = fn(file);
 
             screenshots.push(...images);
         }
 
         return screenshots;
+    }
+
+    async getNewScreenshotImages(
+        zipFiles: Array<ArrayBuffer | Buffer>,
+        branch?: string
+    ): Promise<IZipEntry[]> {
+        const filterFn = (zipFile: ArrayBuffer | Buffer) =>
+            findNewScreenshotImages(
+                zipFile,
+                this.botConfigs?.newScreenshotMark
+            );
+
+        return this.getImagesByFn(zipFiles, filterFn, branch);
+    }
+
+    async getScreenshotDiffImages(
+        zipFiles: Array<ArrayBuffer | Buffer>,
+        branch?: string
+    ): Promise<IZipEntry[]> {
+        const filterFn = (zipFile: ArrayBuffer | Buffer) =>
+            findScreenshotDiffImages(
+                zipFile,
+                this.botConfigs?.screenshotsDiffsPaths
+            );
+
+        return this.getImagesByFn(zipFiles, filterFn, branch);
     }
 
     async uploadImages(
