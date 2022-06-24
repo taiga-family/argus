@@ -9,4 +9,5 @@ export const DEFAULT_BOT_CONFIGS: Required<IBotConfigs> = {
         '.*__diff_output__.*', // it is default cypress folder name into which snapshot diffs are put
     ],
     newScreenshotMark: '.*==new==.*',
+    branchesIgnore: [],
 };
