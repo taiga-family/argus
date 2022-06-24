@@ -303,7 +303,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 res?.data && 'content' in res.data ? res.data.content : ''
             )
             .then((base64Str) => parseTomlFileBase64Str<IBotConfigs>(base64Str))
-            .then((configs) => ({ ...DEFAULT_BOT_CONFIGS, configs }))
+            .then((configs) => ({ ...DEFAULT_BOT_CONFIGS, ...configs }))
             .catch(() => DEFAULT_BOT_CONFIGS);
     }
 
