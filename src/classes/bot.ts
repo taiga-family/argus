@@ -9,6 +9,7 @@ import {
     BotCommitMessage,
     DEFAULT_BOT_CONFIGS,
     DEFAULT_MAIN_BRANCH,
+    DEPRECATED_BOT_CONFIGS_FILE_NAME,
     GITHUB_CDN_DOMAIN,
     IMAGES_STORAGE_FOLDER,
     STORAGE_BRANCH,
@@ -292,7 +293,12 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: IBotConfigs | null = null;
 
     async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
-        return this.getFile(BOT_CONFIGS_FILE_NAME, branch)
+        return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, branch)
+            .then(
+                (res) =>
+                    res ||
+                    this.getFile(DEPRECATED_BOT_CONFIGS_FILE_NAME, branch)
+            )
             .then((res) =>
                 res?.data && 'content' in res.data ? res.data.content : ''
             )
