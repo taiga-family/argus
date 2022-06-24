@@ -292,7 +292,8 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: IBotConfigs | null = null;
 
     async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
-        return this.getFile(BOT_CONFIGS_FILE_NAME, branch)
+        return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, branch)
+            .then((res) => res || this.getFile(BOT_CONFIGS_FILE_NAME, branch))
             .then((res) =>
                 res?.data && 'content' in res.data ? res.data.content : ''
             )
