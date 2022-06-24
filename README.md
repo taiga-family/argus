@@ -41,7 +41,7 @@ To pass custom params for bot you should create `screenshot-bot.config.toml` fil
 # array of regular expression strings to match workflow names
 # which should be watched by bot
 workflowWithTests = [
-  '.*screenshot.*', # all workflows with sub-string "screenshot" in their names will be watched by bot
+  '.*screenshot.*', # all workflows with sub-string "screenshot" in their names
 ]
 
 # array of RegExp strings to match images inside artifacts (by their path or file name)
@@ -50,12 +50,12 @@ screenshotsDiffsPaths = [
   '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
 ]
 
-
 # Regular expression string to match images inside artifacts (by their path or file name)
 # which are created by new screenshot tests.
 newScreenshotMark = '.*==new==.*'
 
-# More configurable params will be added soon (if necessary)
+# array of RegExp strings to match branch names which should be skipped by bot
+branchesIgnore = []
 ```
 
 ## What bot can do? :bulb:

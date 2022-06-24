@@ -290,9 +290,9 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 }
 
 export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
-    private botConfigs: IBotConfigs | null = null;
+    private botConfigs: Required<IBotConfigs> | null = null;
 
-    async loadBotConfigs(branch?: string): Promise<IBotConfigs> {
+    async loadBotConfigs(branch?: string): Promise<Required<IBotConfigs>> {
         return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, branch)
             .then(
                 (res) =>
@@ -303,6 +303,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 res?.data && 'content' in res.data ? res.data.content : ''
             )
             .then((base64Str) => parseTomlFileBase64Str<IBotConfigs>(base64Str))
+            .then((configs) => ({ ...DEFAULT_BOT_CONFIGS, configs }))
             .catch(() => DEFAULT_BOT_CONFIGS);
     }
 
@@ -407,16 +408,20 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
 
-        const workflowsWithTests =
-            this.botConfigs.workflowWithTests ||
-            DEFAULT_BOT_CONFIGS.workflowWithTests;
+        const { workflowWithTests, branchesIgnore } = this.botConfigs;
 
-        return (
+        const workflowWithNoTests =
             !workflowName ||
-            !workflowsWithTests.some((regExp) =>
+            !workflowWithTests.some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowName)
-            )
-        );
+            );
+        const branchIgnored =
+            !!workflowBranch &&
+            branchesIgnore.some((regExp) =>
+                new RegExp(regExp, 'gi').test(workflowBranch)
+            );
+
+        return workflowWithNoTests || branchIgnored;
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {
