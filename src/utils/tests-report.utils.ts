@@ -1,4 +1,4 @@
-import { IZipEntry } from 'adm-zip';
+import type { IZipEntry } from 'adm-zip';
 
 const createCollapsibleScreenshot = (
     [{ entryName }, link]: [IZipEntry, string],
@@ -12,7 +12,7 @@ const createCollapsibleScreenshot = (
 
 const createReport = (
     header: string,
-    screenshotsInfo: [IZipEntry, string][],
+    screenshotsInfo: Array<[IZipEntry, string]>,
     allOpen: boolean = true
 ): string => `
 <h1>${header}</h1>
@@ -22,8 +22,8 @@ ${screenshotsInfo
 `;
 
 export const getFailureReport = (
-    failedTests: [IZipEntry, string][],
-    newTests: [IZipEntry, string][],
+    failedTests: Array<[IZipEntry, string]>,
+    newTests: Array<[IZipEntry, string]>,
     { commitSha }: { commitSha: string }
 ): string => `
 ${failedTests.length ? createReport('Failed tests :x:', failedTests, true) : ''}

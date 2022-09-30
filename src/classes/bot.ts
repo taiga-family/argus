@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { EmitterWebhookEventName } from '@octokit/webhooks';
-import { IZipEntry } from 'adm-zip';
-import { Context } from 'probot';
+import type { EmitterWebhookEventName } from '@octokit/webhooks';
+import type { IZipEntry } from 'adm-zip';
+import type { Context } from 'probot';
 
 import {
     BOT_CONFIGS_FILE_NAME,
@@ -20,7 +20,7 @@ import {
     getWorkflowPrNumbers,
     isWorkflowContext,
 } from '../selectors';
-import { IBotConfigs } from '../types';
+import type { IBotConfigs } from '../types';
 import {
     checkContainsHiddenLabel,
     findNewScreenshotImages,
