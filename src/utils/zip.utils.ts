@@ -1,4 +1,5 @@
-import AdmZip, { IZipEntry } from 'adm-zip';
+import type { IZipEntry } from 'adm-zip';
+import AdmZip from 'adm-zip';
 
 import { DEFAULT_BOT_CONFIGS } from '../constants';
 

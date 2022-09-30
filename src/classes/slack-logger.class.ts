@@ -1,5 +1,5 @@
 import https from 'https';
-import { Context } from 'probot';
+import type { Context } from 'probot';
 
 import { getWorkflowPrNumbers } from '../selectors';
 

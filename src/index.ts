@@ -1,5 +1,5 @@
-import { IZipEntry } from 'adm-zip';
-import { Context, Probot } from 'probot';
+import type { IZipEntry } from 'adm-zip';
+import type { Context, Probot } from 'probot';
 
 import { ScreenshotBot, SlackLogger } from './classes';
 import { BotReportMessage } from './constants';

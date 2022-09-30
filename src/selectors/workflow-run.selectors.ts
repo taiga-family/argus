@@ -1,4 +1,4 @@
-import { Context } from 'probot';
+import type { Context } from 'probot';
 
 export const getWorkflowName = (
     context:
