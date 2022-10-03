@@ -11,6 +11,7 @@ import {
     DEFAULT_MAIN_BRANCH,
     DEPRECATED_BOT_CONFIGS_FILE_NAME,
     GITHUB_CDN_DOMAIN,
+    GithubFileMode,
     IMAGES_STORAGE_FOLDER,
     STORAGE_BRANCH,
     TEST_REPORT_HIDDEN_LABEL,
@@ -244,6 +245,85 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
     }
 
     /**
+     * Upload multiple files to a separate branch under a single commit.
+     * ___
+     * This method uses github api endpoints:
+     * - {@link https://docs.github.com/en/rest/git/blobs#create-a-blob Create a blob}
+     * - {@link https://docs.github.com/en/rest/git/refs#get-a-reference Get a reference}
+     * - {@link https://docs.github.com/en/rest/reference/git#create-a-tree Create a tree}
+     * - {@link https://docs.github.com/en/rest/reference/git#create-a-commit Create a commit}
+     * - {@link https://docs.github.com/en/rest/git/refs#update-a-reference Update a reference}
+     */
+    async uploadFiles({
+        files,
+        branch,
+        commitMessage,
+    }: {
+        files: ReadonlyArray<{ path: string; content: Buffer }>;
+        commitMessage: string;
+        branch: string;
+    }) {
+        if (!files.length) {
+            return [];
+        }
+
+        const repo = this.context.repo();
+        const storageBranchRef = `heads/${branch}`;
+
+        const fileBlobs = await Promise.all(
+            files.map(({ content, path }) =>
+                this.context.octokit.git
+                    .createBlob({
+                        ...repo,
+                        content: content.toString('base64'),
+                        encoding: 'base64',
+                    })
+                    .then(({ data }) => ({ path, sha: data.sha }))
+            )
+        );
+
+        const baseTreeSha = await this.context.octokit.git
+            .getRef({
+                ...repo,
+                ref: storageBranchRef,
+            })
+            .then(({ data }) => data.object.sha);
+
+        const newTreeSha = await this.context.octokit.git
+            .createTree({
+                ...repo,
+                tree: fileBlobs.map(({ path, sha }) => ({
+                    path,
+                    sha,
+                    type: 'blob',
+                    mode: GithubFileMode.Blob,
+                })),
+                base_tree: baseTreeSha,
+            })
+            .then(({ data }) => data.sha);
+
+        const commitSha = await this.context.octokit.git
+            .createCommit({
+                ...repo,
+                tree: newTreeSha,
+                parents: [baseTreeSha],
+                message: commitMessage,
+            })
+            .then(({ data }) => data.sha);
+
+        await this.context.octokit.git.updateRef({
+            ...repo,
+            ref: storageBranchRef,
+            sha: commitSha,
+        });
+
+        return files.map(
+            ({ path }) =>
+                `${GITHUB_CDN_DOMAIN}/${repo.owner}/${repo.repo}/${branch}/${path}`
+        );
+    }
+
+    /**
      * Delete file in the following branch.
      * ___
      * This method uses github api endpoint
@@ -386,18 +466,18 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     ) {
         await this.createBranch(STORAGE_BRANCH);
 
-        return Promise.all(
-            images.map((file, index) =>
-                this.uploadFile({
-                    file,
-                    path: `${this.getSavedImagePathPrefix(
-                        prNumber
-                    )}/${workflowRunId}-${index}.png`,
-                    commitMessage: BotCommitMessage.UploadImage,
-                    branch: STORAGE_BRANCH,
-                })
-            )
-        );
+        const files = images.map((content, i) => ({
+            content,
+            path: `${this.getSavedImagePathPrefix(
+                prNumber
+            )}/${workflowRunId}-${i}.png`,
+        }));
+
+        return this.uploadFiles({
+            files,
+            branch: STORAGE_BRANCH,
+            commitMessage: BotCommitMessage.UploadImage,
+        });
     }
 
     async checkShouldSkipWorkflow(
