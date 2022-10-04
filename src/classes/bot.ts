@@ -6,7 +6,6 @@ import type { Context } from 'probot';
 
 import {
     BOT_CONFIGS_FILE_NAME,
-    BotCommitMessage,
     DEFAULT_BOT_CONFIGS,
     DEFAULT_MAIN_BRANCH,
     DEPRECATED_BOT_CONFIGS_FILE_NAME,
@@ -202,13 +201,6 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 
     /**
      * Upload multiple files to a separate branch under a single commit.
-     * ___
-     * This method uses github api endpoints:
-     * - {@link https://docs.github.com/en/rest/git/blobs#create-a-blob Create a blob}
-     * - {@link https://docs.github.com/en/rest/git/refs#get-a-reference Get a reference}
-     * - {@link https://docs.github.com/en/rest/reference/git#create-a-tree Create a tree}
-     * - {@link https://docs.github.com/en/rest/reference/git#create-a-commit Create a commit}
-     * - {@link https://docs.github.com/en/rest/git/refs#update-a-reference Update a reference}
      */
     async uploadFiles({
         files,
@@ -223,19 +215,92 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             return [];
         }
 
+        await this.createCommit({
+            files,
+            branch,
+            commitMessage,
+        });
+
+        const { repo, owner } = this.context.repo();
+
+        return files.map(
+            ({ path }) =>
+                `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`
+        );
+    }
+
+    /**
+     * Delete files in the following branch.
+     */
+    async deleteFiles({
+        paths,
+        commitMessage,
+        branch,
+    }: {
+        paths: string[];
+        commitMessage: string;
+        branch: string;
+    }) {
+        if (!paths.length) {
+            return;
+        }
+
+        await this.createCommit({
+            files: paths.map((path) => ({ path, content: null })),
+            branch,
+            commitMessage,
+        });
+    }
+
+    /**
+     * List pull requests.
+     * ___
+     * This method uses github api endpoint
+     * {@link https://docs.github.com/en/rest/reference/pulls#list-pull-requests List pull requests}.
+     *
+     * GitHub App must have the **pull_requests:read** permission to use this endpoints.
+     */
+    async getPRsList() {
+        return this.context.octokit.rest.pulls.list(this.context.repo());
+    }
+
+    /**
+     * Create commit and push it to the top of the branch.
+     * ___
+     * This method uses github api endpoints:
+     * - {@link https://docs.github.com/en/rest/git/blobs#create-a-blob Create a blob}
+     * - {@link https://docs.github.com/en/rest/git/refs#get-a-reference Get a reference}
+     * - {@link https://docs.github.com/en/rest/reference/git#create-a-tree Create a tree}
+     * - {@link https://docs.github.com/en/rest/reference/git#create-a-commit Create a commit}
+     * - {@link https://docs.github.com/en/rest/git/refs#update-a-reference Update a reference}
+     */
+    protected async createCommit({
+        files,
+        branch,
+        commitMessage,
+    }: {
+        files: ReadonlyArray<{ path: string; content: Buffer | null }>;
+        commitMessage: string;
+        branch: string;
+    }) {
+        if (!files.length) {
+            throw new Error('[createCommit] Empty array is forbidden');
+        }
+
         const repo = this.context.repo();
         const storageBranchRef = `heads/${branch}`;
 
-        const fileBlobs = await Promise.all(
-            files.map(({ content, path }) =>
-                this.context.octokit.git
-                    .createBlob({
-                        ...repo,
-                        content: content.toString('base64'),
-                        encoding: 'base64',
-                    })
-                    .then(({ data }) => ({ path, sha: data.sha }))
-            )
+        const filesNewSha = await Promise.all(
+            files.map(({ content, path }) => {
+                const blobs = content
+                    ? this.createBlob(content).then(({ sha }) => sha)
+                    : Promise.resolve(null);
+
+                return blobs.then((sha) => ({
+                    path,
+                    sha,
+                }));
+            })
         );
 
         const baseTreeSha = await this.context.octokit.git
@@ -248,7 +313,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         const newTreeSha = await this.context.octokit.git
             .createTree({
                 ...repo,
-                tree: fileBlobs.map(({ path, sha }) => ({
+                tree: filesNewSha.map(({ path, sha }) => ({
                     path,
                     sha,
                     type: 'blob',
@@ -272,56 +337,16 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             ref: storageBranchRef,
             sha: commitSha,
         });
-
-        return files.map(
-            ({ path }) =>
-                `${GITHUB_CDN_DOMAIN}/${repo.owner}/${repo.repo}/${branch}/${path}`
-        );
     }
 
-    /**
-     * Delete file in the following branch.
-     * ___
-     * This method uses github api endpoint
-     * {@link https://docs.github.com/en/rest/reference/repos#delete-a-file Delete a file}.
-     *
-     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
-     * (or **contents:write**).
-     */
-    async deleteFile({
-        path,
-        commitMessage,
-        branch,
-    }: {
-        path: string;
-        commitMessage: string;
-        branch: string;
-    }) {
-        const oldFileVersion = await this.getFile(path, branch);
-
-        if (!(oldFileVersion && 'sha' in oldFileVersion.data)) {
-            throw new Error('the file is not found!');
-        }
-
-        return this.context.octokit.rest.repos.deleteFile({
-            ...this.context.repo(),
-            path,
-            branch,
-            message: commitMessage,
-            sha: oldFileVersion.data.sha,
-        });
-    }
-
-    /**
-     * List pull requests.
-     * ___
-     * This method uses github api endpoint
-     * {@link https://docs.github.com/en/rest/reference/pulls#list-pull-requests List pull requests}.
-     *
-     * GitHub App must have the **pull_requests:read** permission to use this endpoints.
-     */
-    async getPRsList() {
-        return this.context.octokit.rest.pulls.list(this.context.repo());
+    private async createBlob(fileContent: Buffer) {
+        return this.context.octokit.git
+            .createBlob({
+                ...this.context.repo(),
+                content: fileContent.toString('base64'),
+                encoding: 'base64',
+            })
+            .then(({ data }) => data);
     }
 }
 
@@ -432,7 +457,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         return this.uploadFiles({
             files,
             branch: STORAGE_BRANCH,
-            commitMessage: BotCommitMessage.UploadImage,
+            commitMessage: `ci(screenshot-bot): Upload | {pr: ${prNumber}, workflow: ${workflowRunId}}`,
         });
     }
 
@@ -465,20 +490,16 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.getSavedImagePathPrefix(prNumber),
             STORAGE_BRANCH
         );
+        const paths =
+            folder && Array.isArray(folder.data)
+                ? folder.data.map(({ path }) => path)
+                : [];
 
-        if (folder && Array.isArray(folder.data)) {
-            return Promise.all(
-                folder.data.map(({ path }) =>
-                    this.deleteFile({
-                        path,
-                        commitMessage: BotCommitMessage.DeleteFolder,
-                        branch: STORAGE_BRANCH,
-                    })
-                )
-            );
-        }
-
-        return null;
+        return this.deleteFiles({
+            paths,
+            commitMessage: `ci(screenshot-bot): Delete | {pr: ${prNumber}}`,
+            branch: STORAGE_BRANCH,
+        });
     }
 
     /**
