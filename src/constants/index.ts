@@ -3,3 +3,4 @@ export * from './bot-messages.constants';
 export * from './bot-storage.constants';
 export * from './comments-hidden-labels.constants';
 export * from './common';
+export * from './github-file-modes.constants';
