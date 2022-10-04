@@ -201,50 +201,6 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
     }
 
     /**
-     * Upload file to a separate branch.
-     * ___
-     * This method uses github api endpoint
-     * {@link https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents Create or update file contents}.
-     *
-     * GitHub App must have the **single_file:write** permission (to required files) to use this endpoints
-     * (or **contents:write**).
-     */
-    async uploadFile({
-        file,
-        path,
-        branch,
-        commitMessage,
-    }: {
-        /** buffer of the file */
-        file: Buffer;
-        /** path of future file (including file name + file format) */
-        path: string;
-        commitMessage: string;
-        branch: string;
-    }): Promise<string> {
-        const { repo, owner } = this.context.repo();
-        const content = file.toString('base64');
-        const oldFileVersion = await this.getFile(path, branch);
-
-        return this.context.octokit.repos
-            .createOrUpdateFileContents({
-                owner,
-                repo,
-                content,
-                path,
-                branch,
-                sha:
-                    oldFileVersion && 'sha' in oldFileVersion.data
-                        ? oldFileVersion.data.sha
-                        : undefined,
-                message: commitMessage,
-            })
-            .then(
-                () => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`
-            );
-    }
-
-    /**
      * Upload multiple files to a separate branch under a single commit.
      * ___
      * This method uses github api endpoints:
