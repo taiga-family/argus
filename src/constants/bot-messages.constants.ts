@@ -13,8 +13,3 @@ Manually download artifacts of workflow or look into workflow logs to check it.`
 # Pull request was closed :heavy_check_mark:\n
 All saved screenshots (for current PR) were deleted :wastebasket:`,
 }
-
-export const enum BotCommitMessage {
-    UploadImage = 'chore: upload images of failed screenshot tests',
-    DeleteFolder = 'chore: delete saved screenshots (PR was closed)',
-}
