@@ -10,4 +10,6 @@ export const DEFAULT_BOT_CONFIGS: Required<IBotConfigs> = {
     ],
     newScreenshotMark: '.*==new==.*',
     branchesIgnore: [],
+    screenshotImageAttrs: ['height="300"'],
+    failedTestsReportDescription: '',
 };
