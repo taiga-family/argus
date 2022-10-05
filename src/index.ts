@@ -73,12 +73,13 @@ const EVENTS_CALLBACKS = {
             workflowRunId
         );
 
+        const botConfigs = await bot.getBotConfigs();
         const reportText =
             failedTestsImages.length || newTestsImages.length
                 ? getFailureReport(
                       zip(failedTestsImages, failedTestsImagesUrls),
                       zip(newTestsImages, newTestsImagesUrls),
-                      { commitSha }
+                      { commitSha, botConfigs }
                   )
                 : BotReportMessage.FailedWorkflowNoScreenshots;
 

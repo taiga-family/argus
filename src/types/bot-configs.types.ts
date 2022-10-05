@@ -24,4 +24,16 @@ export interface IBotConfigs {
      * @example ["^release/.*"]
      */
     branchesIgnore: string[];
+    /**
+     * array of attributes (key="value") for html-tag <img /> (screenshots)
+     * ___
+     * @example ['width="200px"', 'height="300px"']
+     */
+    screenshotImageAttrs: string[];
+    /**
+     * Text which is placed at the beginning of section "Failed tests"
+     * ___
+     * @example **After <= Diff => Before**
+     */
+    failedTestsReportDescription: string;
 }

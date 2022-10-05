@@ -56,6 +56,12 @@ newScreenshotMark = '.*==new==.*'
 
 # array of RegExp strings to match branch names which should be skipped by bot
 branchesIgnore = []
+
+# array of attributes (key="value") for html-tag <img /> (screenshots)
+screenshotImageAttrs = ['height="300px"']
+
+# Text which is placed at the beginning of section "Failed tests"
+failedTestsReportDescription = ''
 ```
 
 ## What bot can do? :bulb:

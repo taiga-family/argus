@@ -368,6 +368,12 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             .catch(() => DEFAULT_BOT_CONFIGS);
     }
 
+    async getBotConfigs(
+        branch: string = DEFAULT_MAIN_BRANCH
+    ): Promise<Required<IBotConfigs>> {
+        return this.botConfigs || this.loadBotConfigs(branch);
+    }
+
     async getPrevBotReportComment(prNumber: number) {
         const prComments = await this.getCommentsByIssueId(prNumber);
 
