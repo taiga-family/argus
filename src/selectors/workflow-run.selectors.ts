@@ -14,8 +14,8 @@ export const getWorkflowBranch = (
         | Context<'workflow_run'>
         | Context<'workflow_run.requested'>
         | Context<'workflow_run.completed'>
-): string | undefined => {
-    return context.payload.workflow_run?.head_branch;
+): string => {
+    return context.payload.workflow_run?.head_branch || '';
 };
 
 export const getWorkflowPrNumbers = (
@@ -61,4 +61,13 @@ export const isWorkflowContext = (
     'workflow_run' | 'workflow_run.completed' | 'workflow_run.requested'
 > => {
     return 'workflow_run' in context.payload;
+};
+
+export const getWorkflowHeadRepo = (
+    context:
+        | Context<'workflow_run'>
+        | Context<'workflow_run.requested'>
+        | Context<'workflow_run.completed'>
+) => {
+    return context.payload.workflow_run.head_repository;
 };

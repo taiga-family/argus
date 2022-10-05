@@ -16,6 +16,7 @@ import {
     TEST_REPORT_HIDDEN_LABEL,
 } from '../constants';
 import {
+    getWorkflowHeadRepo,
     getWorkflowHeadSha,
     getWorkflowPrNumbers,
     isWorkflowContext,
@@ -136,13 +137,28 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * GitHub App must have the **contents:read** (or **single_file:read** to required files) permission to use this endpoints.
      *
      * @param path file location (from root of repo)
-     * @param branch target branch
-     * (if branch param is not provided it takes the repository’s default branch (usually master/main))
+     * @param targetConfigs info about target repository
      */
-    async getFile(path: string, branch?: string) {
+    async getFile(
+        path: string,
+        {
+            branch,
+            owner,
+            repo,
+        }: {
+            branch: string;
+            /** Repository owner. Default: takes value from `context.repo()` */
+            owner?: string;
+            /** Repository name. Default: takes value from `context.repo()` */
+            repo?: string;
+        }
+    ) {
+        const repoInfo = this.context.repo();
+
         return this.context.octokit.repos
             .getContent({
-                ...this.context.repo(),
+                owner: owner || repoInfo.owner,
+                repo: repo || repoInfo.repo,
                 path,
                 ref: branch,
             })
@@ -353,12 +369,29 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: Required<IBotConfigs> | null = null;
 
-    async loadBotConfigs(branch?: string): Promise<Required<IBotConfigs>> {
-        return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, branch)
+    async loadBotConfigs(branch: string): Promise<Required<IBotConfigs>> {
+        let { owner, repo } = this.context.repo();
+
+        if (isWorkflowContext(this.context)) {
+            const headRepo = getWorkflowHeadRepo(this.context);
+
+            owner = headRepo.owner.login;
+            repo = headRepo.name;
+        }
+
+        return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, {
+            branch,
+            owner,
+            repo,
+        })
             .then(
                 (res) =>
                     res ||
-                    this.getFile(DEPRECATED_BOT_CONFIGS_FILE_NAME, branch)
+                    this.getFile(DEPRECATED_BOT_CONFIGS_FILE_NAME, {
+                        branch,
+                        owner,
+                        repo,
+                    })
             )
             .then((res) =>
                 res?.data && 'content' in res.data ? res.data.content : ''
@@ -399,7 +432,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     async getImagesByFn(
         zipFiles: Array<ArrayBuffer | Buffer>,
         fn: (zipFile: ArrayBuffer | Buffer) => IZipEntry[],
-        branch?: string
+        branch: string
     ): Promise<IZipEntry[]> {
         if (!zipFiles.length) {
             return Promise.resolve([]);
@@ -422,7 +455,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
     async getNewScreenshotImages(
         zipFiles: Array<ArrayBuffer | Buffer>,
-        branch?: string
+        branch: string
     ): Promise<IZipEntry[]> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
             findNewScreenshotImages(
@@ -435,7 +468,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
     async getScreenshotDiffImages(
         zipFiles: Array<ArrayBuffer | Buffer>,
-        branch?: string
+        branch: string
     ): Promise<IZipEntry[]> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
             findScreenshotDiffImages(
@@ -469,7 +502,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
     async checkShouldSkipWorkflow(
         workflowName: string,
-        workflowBranch?: string
+        workflowBranch: string
     ): Promise<boolean> {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
@@ -494,7 +527,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     async deleteUploadedImagesFolder(prNumber: number) {
         const folder = await this.getFile(
             this.getSavedImagePathPrefix(prNumber),
-            STORAGE_BRANCH
+            { branch: STORAGE_BRANCH }
         );
         const paths =
             folder && Array.isArray(folder.data)
