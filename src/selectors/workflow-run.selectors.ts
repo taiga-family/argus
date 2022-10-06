@@ -63,6 +63,10 @@ export const isWorkflowContext = (
     return 'workflow_run' in context.payload;
 };
 
+/**
+ * Opening PR via fork => function returns forked repository
+ * Opening PR by maintainer => function returns original repository
+ */
 export const getWorkflowHeadRepo = (
     context:
         | Context<'workflow_run'>
