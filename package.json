@@ -29,7 +29,7 @@
         "@octokit/types": "7.5.1",
         "@tinkoff/eslint-config": "1.54.4",
         "@tinkoff/eslint-config-angular": "1.54.3",
-        "@tinkoff/prettier-config": "1.32.1",
+        "@tinkoff/prettier-config": "1.52.1",
         "@types/adm-zip": "0.5.2",
         "@types/node": "18.18.3",
         "concurrently": "7.4.0",
