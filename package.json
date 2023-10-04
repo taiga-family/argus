@@ -16,8 +16,8 @@
     ],
     "scripts": {
         "start:watch": "concurrently --kill-others \"tsc --watch\" \"wait-on ./lib/index.js && probot run ./lib/index.js\"",
-        "start": "tsc && probot run ./lib/index.js",
         "prettier": "prettier '**/*.{svg,yml,js,ts,html,md,less,json}'",
+        "start": "tsc && probot run ./lib/index.js",
         "build": "tsc"
     },
     "dependencies": {
