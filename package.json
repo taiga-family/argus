@@ -26,7 +26,7 @@
         "toml": "3.0.0"
     },
     "devDependencies": {
-        "@octokit/types": "12.1.1",
+        "@octokit/types": "12.2.0",
         "@tinkoff/eslint-config": "2.0.0",
         "@tinkoff/eslint-config-angular": "2.0.0",
         "@tinkoff/prettier-config": "2.0.0",
