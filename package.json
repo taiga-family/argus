@@ -33,7 +33,7 @@
         "@types/adm-zip": "0.5.4",
         "@types/node": "20.9.1",
         "concurrently": "8.2.2",
-        "smee-client": "1.2.3",
+        "smee-client": "2.0.0",
         "typescript": "4.8.4",
         "wait-on": "7.2.0"
     },
