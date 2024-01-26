@@ -22,7 +22,7 @@
     },
     "dependencies": {
         "adm-zip": "0.5.10",
-        "probot": "13.0.0",
+        "probot": "13.0.1",
         "toml": "3.0.0"
     },
     "devDependencies": {
