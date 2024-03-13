@@ -27,8 +27,8 @@
     },
     "devDependencies": {
         "@octokit/types": "12.6.0",
-        "@tinkoff/eslint-config": "2.0.0",
-        "@tinkoff/eslint-config-angular": "2.0.2",
+        "@tinkoff/eslint-config": "2.0.3",
+        "@tinkoff/eslint-config-angular": "2.0.3",
         "@tinkoff/prettier-config": "2.0.0",
         "@types/adm-zip": "0.5.5",
         "@types/node": "20.11.27",
