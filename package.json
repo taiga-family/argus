@@ -21,7 +21,7 @@
         "build": "tsc"
     },
     "dependencies": {
-        "adm-zip": "0.5.10",
+        "adm-zip": "0.5.11",
         "probot": "13.1.0",
         "toml": "3.0.0"
     },
