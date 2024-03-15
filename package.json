@@ -31,7 +31,7 @@
         "@tinkoff/eslint-config-angular": "2.0.5",
         "@tinkoff/prettier-config": "2.0.4",
         "@types/adm-zip": "0.5.5",
-        "@types/node": "20.11.27",
+        "@types/node": "20.11.28",
         "concurrently": "8.2.2",
         "smee-client": "2.0.1",
         "typescript": "4.8.4",
