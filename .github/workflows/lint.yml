@@ -10,7 +10,7 @@ jobs:
         name: Lint
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4.1.1
+            - uses: actions/checkout@v4.1.5
             - uses: taiga-family/ci/actions/setup/node@v1.55.7
             - run: npm run prettier -- --check
 
