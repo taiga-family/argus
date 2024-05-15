@@ -11,7 +11,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4.1.5
-            - uses: taiga-family/ci/actions/setup/node@v1.55.7
+            - uses: taiga-family/ci/actions/setup/node@v1.56.3
             - run: npm run build
 
 concurrency:
