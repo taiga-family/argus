@@ -10,7 +10,7 @@ jobs:
         name: Build
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4.2.1
+            - uses: actions/checkout@v4.2.2
             - uses: taiga-family/ci/actions/setup/node@v1.83.0
             - run: npm run build
 
