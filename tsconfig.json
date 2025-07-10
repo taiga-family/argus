@@ -12,7 +12,7 @@
         "checkJs": true /* Report errors in .js files. */,
         "declaration": true /* Generates corresponding '.d.ts' file. */,
         "sourceMap": true /* Generates corresponding '.map' file. */,
-        "outDir": "./lib" /* Redirect output structure to the directory. */,
+        "outDir": "./public" /* Redirect output structure to the directory. */,
 
         /* Checks */
         "strict": true /* Enable all strict type-checking options. */,
