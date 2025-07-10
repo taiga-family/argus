@@ -1,8 +1,9 @@
-name: 🤖 Auto approve validation
-on: pull_request
+name: 🤖 PR auto merge
+on:
+    pull_request:
 
 env:
-    JOBS_NAME: '[ "Build", "Lint" ]'
+    PR_JOBS_NAME: '[ "Build", "Lint" ]'
 
 jobs:
     setup:
@@ -10,11 +11,10 @@ jobs:
         outputs:
             matrix: ${{ steps.matrix.outputs.value }}
         steps:
-            - uses: taiga-family/ci/actions/setup/checkout@v1.83.0
-            - uses: taiga-family/ci/actions/setup/variables@v1.83.0
+            - uses: actions/checkout@v4.2.2
+            - uses: taiga-family/ci/actions/setup/variables@v1.132.0
             - id: matrix
-              if: env.IS_TAIGA_FAMILY_BOT_PR_AUTHOR == 'true'
-              run: echo "value=$JOBS_NAME" >> $GITHUB_OUTPUT
+              run: echo "value=$PR_JOBS_NAME" >> $GITHUB_OUTPUT
 
     wait:
         needs: [setup]
@@ -24,7 +24,7 @@ jobs:
             matrix:
                 value: ${{ fromJSON(needs.setup.outputs.matrix) }}
         steps:
-            - uses: taiga-family/ci/actions/run/wait-job@v1.83.0
+            - uses: taiga-family/ci/actions/run/wait-job@v1.132.0
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
                   job: ${{ matrix.value }}
@@ -33,14 +33,18 @@ jobs:
         needs: [wait]
         runs-on: ubuntu-latest
         steps:
-            - uses: taiga-family/ci/actions/auto/approve/double@v1.83.0
+            - uses: actions/checkout@v4.2.2
+            - uses: taiga-family/ci/actions/setup/variables@v1.132.0
+            - uses: taiga-family/ci/actions/auto/approve/double@v1.132.0
+              if: env.IS_TAIGA_FAMILY_BOT_PR_AUTHOR == 'true'
               with:
                   token1: ${{ secrets.GITHUB_TOKEN }}
                   token2: ${{ secrets.TAIGA_FAMILY_APPROVE_BOT_PAT }}
-            - uses: taiga-family/ci/actions/run/merge@v1.83.0
+            - uses: taiga-family/ci/actions/run/merge@v1.132.0
+              if: env.IS_TAIGA_FAMILY_BOT_PR_AUTHOR == 'true'
               with:
                   token: ${{ secrets.TAIGA_FAMILY_BOT_PAT }}
 
 concurrency:
-    group: auto-approve-${{ github.head_ref }}
+    group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
