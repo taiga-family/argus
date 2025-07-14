@@ -41,14 +41,16 @@ To pass custom params for bot you should create `screenshot-bot.config.yml` file
 # array of regular expression strings to match workflow names
 # which should be watched by bot
 workflowWithTests: [
-  '.*screenshot.*', # all workflows with sub-string "screenshot" in their names
-]
+        # all workflows with sub-string "screenshot" in their names
+        '.*screenshot.*',
+    ]
 
 # array of RegExp strings to match images inside artifacts (by their path or file name)
 # which shows difference between two screenshot and which will be added to bot report comment
 screenshotsDiffsPaths: [
-  '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
-]
+        # it is default cypress folder name into which snapshot diffs are put
+        '.*__diff_output__.*',
+    ]
 
 # Regular expression string to match images inside artifacts (by their path or file name)
 # which are created by new screenshot tests.
