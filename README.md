@@ -33,35 +33,35 @@ To begin using bot:
 Bot has configurable params which can be unique for every Github repository.<br>
 Every param is optional, and you can skip this section if default configuration satisfies you.
 
-To pass custom params for bot you should create `screenshot-bot.config.toml` file inside the `.github` directory of repository.
+To pass custom params for bot you should create `screenshot-bot.config.yml` file inside the `.github` directory of repository.
 
-**Example of `screenshot-bot.config.toml` file content** (you can paste it as it is) and **default values** of each param:
+**Example of `screenshot-bot.config.yml` file content** (you can paste it as it is) and **default values** of each param:
 
 ```yaml
 # array of regular expression strings to match workflow names
 # which should be watched by bot
-workflowWithTests = [
+workflowWithTests: [
   '.*screenshot.*', # all workflows with sub-string "screenshot" in their names
 ]
 
 # array of RegExp strings to match images inside artifacts (by their path or file name)
 # which shows difference between two screenshot and which will be added to bot report comment
-screenshotsDiffsPaths = [
+screenshotsDiffsPaths: [
   '.*__diff_output__.*', # it is default cypress folder name into which snapshot diffs are put
 ]
 
 # Regular expression string to match images inside artifacts (by their path or file name)
 # which are created by new screenshot tests.
-newScreenshotMark = '.*==new==.*'
+newScreenshotMark: '.*==new==.*'
 
 # array of RegExp strings to match branch names which should be skipped by bot
-branchesIgnore = []
+branchesIgnore: []
 
 # array of attributes (key="value") for html-tag <img /> (screenshots)
-screenshotImageAttrs = ['height="300px"']
+screenshotImageAttrs: ['height="300px"']
 
 # Text which is placed at the beginning of section "Failed tests"
-failedTestsReportDescription = ''
+failedTestsReportDescription: ''
 ```
 
 ## What bot can do? :bulb:

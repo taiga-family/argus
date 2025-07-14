@@ -1,7 +1,6 @@
 import type { IBotConfigs } from '../types';
 
-export const DEPRECATED_BOT_CONFIGS_FILE_NAME = 'bot-configs.toml';
-export const BOT_CONFIGS_FILE_NAME = 'screenshot-bot.config.toml';
+export const BOT_CONFIGS_FILE_NAME = 'screenshot-bot.config.yml';
 
 export const DEFAULT_BOT_CONFIGS: Required<IBotConfigs> = {
     workflowWithTests: ['.*screenshot.*'],
