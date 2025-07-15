@@ -8,7 +8,6 @@ import {
     BOT_CONFIGS_FILE_NAME,
     DEFAULT_BOT_CONFIGS,
     DEFAULT_MAIN_BRANCH,
-    DEPRECATED_BOT_CONFIGS_FILE_NAME,
     GITHUB_CDN_DOMAIN,
     GithubFileMode,
     IMAGES_STORAGE_FOLDER,
@@ -27,7 +26,6 @@ import {
     findNewScreenshotImages,
     findScreenshotDiffImages,
     markCommentWithHiddenLabel,
-    parseTomlFileBase64Str,
 } from '../utils';
 
 export abstract class Bot<T extends EmitterWebhookEventName> {
@@ -379,26 +377,15 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             repo = headRepo.name;
         }
 
-        return this.getFile(`.github/${BOT_CONFIGS_FILE_NAME}`, {
-            branch,
-            owner,
-            repo,
-        })
-            .then(
-                (res) =>
-                    res ||
-                    this.getFile(DEPRECATED_BOT_CONFIGS_FILE_NAME, {
-                        branch,
-                        owner,
-                        repo,
-                    })
-            )
-            .then((res) =>
-                res?.data && 'content' in res.data ? res.data.content : ''
-            )
-            .then((base64Str) => parseTomlFileBase64Str<IBotConfigs>(base64Str))
-            .then((configs) => ({ ...DEFAULT_BOT_CONFIGS, ...configs }))
-            .catch(() => DEFAULT_BOT_CONFIGS);
+        return this.context.octokit.config
+            .get({
+                owner,
+                repo,
+                branch,
+                path: `.github/${BOT_CONFIGS_FILE_NAME}`,
+                defaults: DEFAULT_BOT_CONFIGS,
+            })
+            .then(({ config }) => config);
     }
 
     async getBotConfigs(
