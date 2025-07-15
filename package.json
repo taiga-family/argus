@@ -5,7 +5,7 @@
     "description": "GitHub App to watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request.",
     "author": "Barsukov Nikita <nikita.s.barsukov@gmail.com>",
     "license": "ISC",
-    "homepage": "https://github.com/Tinkoff/argus",
+    "homepage": "https://github.com/taiga-family/argus",
     "keywords": [
         "probot",
         "github",
