@@ -1,6 +1,6 @@
 # Argus
 
-**Argus** is a GitHub App built with [Probot](https://github.com/probot/probot)
+**Argus** is a bot built with [Probot](https://github.com/probot/probot)
 to watch for repository's workflows with tests, download artifacts with screenshots differences images,
 and pin these images to bot's comment of pull request.
 
@@ -9,23 +9,45 @@ and pin these images to bot's comment of pull request.
 > (being subject to strict scrutiny in one's actions to an invasive, distressing degree).
 > [(c) Wikipedia](https://en.wikipedia.org/wiki/Argus_Panoptes)
 
-Read more about this Github App:
+Read more about this tool:
 
 -   [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/its-tinkoff/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4) (English)
 -   [«Боты должны работать, разработчики должны думать»: пишем Github App на Node.js](https://habr.com/ru/company/tbank/blog/580936/) (Russian)
 
 ## Setup :rocket:
+GitHub Action is recommended approach to use bot.<br />
+However, its deployment as GitHub App is option too.
 
-You can deploy your own bot using this code
-or use already hosted **[lumberjack-bot](https://github.com/apps/lumberjack-bot)**.
+### As GitHub Action
 
-> We actively use **lumberjack-bot** in our UI Kit library [Taiga UI](https://github.com/taiga-family/taiga-ui).
-> It watches our taiga-components, and it can keep track of your repository too.
-> Do not hesitate to integrate it in your project's development.
+```yml
+# .github/workflows/screenshot-bot.yml
+on:
+  workflow_run:
+    workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
+    types: [requested, completed]
+  pull_request:
+    types: [closed]
 
-To begin using bot:
+jobs:
+  awake-screenshot-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: taiga-family/argus
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
--   [Invite](https://github.com/apps/lumberjack-bot/installations/new) him to you repo.
+### As GitHub App
+
+You can deploy your own Github App using this code and recipes from [Probot documentation](https://probot.github.io/docs/deployment).
+
+After deployment:
+-   Invite bot to you repo.
 -   See its [configurable params](#bot-configurations-gear) or use default ones.
 
 ## Bot configurations :gear:
@@ -38,17 +60,10 @@ To pass custom params for bot you should create `screenshot-bot.config.yml` file
 **Example of `screenshot-bot.config.yml` file content** (you can paste it as it is) and **default values** of each param:
 
 ```yaml
-# array of regular expression strings to match workflow names
-# which should be watched by bot
-workflowWithTests: [
-        # all workflows with sub-string "screenshot" in their names
-        '.*screenshot.*',
-    ]
-
 # array of RegExp strings to match images inside artifacts (by their path or file name)
 # which shows difference between two screenshot and which will be added to bot report comment
 screenshotsDiffsPaths: [
-        # it is default cypress folder name into which snapshot diffs are put
+        # it is default Cypress folder name into which snapshot diffs are put
         '.*__diff_output__.*',
     ]
 
@@ -64,6 +79,17 @@ screenshotImageAttrs: ['height="300px"']
 
 # Text which is placed at the beginning of section "Failed tests"
 failedTestsReportDescription: ''
+
+##################################
+# Not relevant for GitHub Action #
+##################################
+
+# array of regular expression strings to match workflow names
+# which should be watched by bot
+workflowWithTests: [
+  # all workflows with sub-string "screenshot" in their names
+  '.*screenshot.*',
+]
 ```
 
 ## What bot can do? :bulb:
@@ -80,8 +106,9 @@ failedTestsReportDescription: ''
 
 ## About Permissions :closed_lock_with_key:
 
-At the beginning of the bot's installation it asks for some permissions.<br>
-All of them are really needed, and we do not ask for more permissions than necessary.
+If you use bot as GitHub Action it is required to provide `permissions` property in your `yml` file.<br>
+If you use bot as GitHub App it asks for some permissions at the beginning of the bot's installation.<br>
+All requested permissions are really needed, and we do not ask for more permissions than necessary.
 
 #### Permissions
 

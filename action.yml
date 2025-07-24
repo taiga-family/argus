@@ -1,0 +1,8 @@
+name: "Argus"
+description: "Watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request"
+runs:
+  using: "node20"
+  main: "public/index.js"
+branding:
+  icon: eye
+  color: blue
