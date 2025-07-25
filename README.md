@@ -15,6 +15,7 @@ Read more about this tool:
 -   [«Боты должны работать, разработчики должны думать»: пишем Github App на Node.js](https://habr.com/ru/company/tbank/blog/580936/) (Russian)
 
 ## Setup :rocket:
+
 GitHub Action is recommended approach to use bot.<br />
 However, its deployment as GitHub App is option too.
 
@@ -23,23 +24,23 @@ However, its deployment as GitHub App is option too.
 ```yml
 # .github/workflows/screenshot-bot.yml
 on:
-  workflow_run:
-    workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
-    types: [requested, completed]
-  pull_request:
-    types: [closed]
+    workflow_run:
+        workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
+        types: [requested, completed]
+    pull_request:
+        types: [closed]
 
 jobs:
-  awake-screenshot-bot:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: taiga-family/argus
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    awake-screenshot-bot:
+        runs-on: ubuntu-latest
+        permissions:
+            actions: read
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: taiga-family/argus
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### As GitHub App
@@ -47,6 +48,7 @@ jobs:
 You can deploy your own Github App using this code and recipes from [Probot documentation](https://probot.github.io/docs/deployment).
 
 After deployment:
+
 -   Invite bot to you repo.
 -   See its [configurable params](#bot-configurations-gear) or use default ones.
 
@@ -87,9 +89,9 @@ failedTestsReportDescription: ''
 # array of regular expression strings to match workflow names
 # which should be watched by bot
 workflowWithTests: [
-  # all workflows with sub-string "screenshot" in their names
-  '.*screenshot.*',
-]
+        # all workflows with sub-string "screenshot" in their names
+        '.*screenshot.*',
+    ]
 ```
 
 ## What bot can do? :bulb:
