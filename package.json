@@ -18,7 +18,7 @@
         "start:watch": "concurrently --kill-others \"tsc --watch\" \"wait-on ./lib/index.js && probot run ./lib/index.js\"",
         "prettier": "prettier '**/*.{svg,yml,js,ts,html,md,less,json}'",
         "start": "tsc && probot run ./public/index.js",
-        "build": "tsc"
+        "build": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript"
     },
     "dependencies": {
         "adm-zip": "0.5.16",
@@ -26,12 +26,18 @@
     },
     "devDependencies": {
         "@octokit/types": "12.6.0",
+        "@probot/adapter-github-actions": "4.0.3",
+        "@rollup/plugin-commonjs": "28.0.6",
+        "@rollup/plugin-json": "6.1.0",
+        "@rollup/plugin-node-resolve": "16.0.1",
+        "@rollup/plugin-typescript": "12.1.4",
         "@tinkoff/eslint-config": "3.0.0",
         "@tinkoff/eslint-config-angular": "3.0.0",
         "@tinkoff/prettier-config": "3.0.0",
         "@types/adm-zip": "0.5.7",
         "@types/node": "22.16.5",
         "concurrently": "9.2.0",
+        "rollup": "4.45.0",
         "smee-client": "2.0.4",
         "typescript": "4.8.4",
         "wait-on": "8.0.4"

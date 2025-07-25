@@ -48,7 +48,9 @@ const EVENTS_CALLBACKS = {
 
         const workflowRunId = getWorkflowRunId(context);
 
-        if (!workflowRunId) return;
+        if (!workflowRunId) {
+            return;
+        }
 
         const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
             workflowRunId
@@ -132,7 +134,7 @@ const logError = (step: string, context: Context, error: unknown) => {
     return slackLogger.sendError(step, context, error);
 };
 
-export = (app: Probot) => {
+export default (app: Probot) => {
     app.on(RepositoryEvent.WorkflowRunRequested, async (context) => {
         try {
             await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](

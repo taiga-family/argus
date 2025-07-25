@@ -1,36 +1,26 @@
 {
-    "compilerOptions": {
-        /* Basic Options */
-        "incremental": true /* Enable incremental compilation */,
-        "target": "es5" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019' or 'ESNEXT'. */,
-        "module": "commonjs" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */,
-        "lib": [
-            "es2015",
-            "es2017"
-        ] /* Specify library files to be included in the compilation. */,
-        "allowJs": true /* Allow javascript files to be compiled. */,
-        "checkJs": true /* Report errors in .js files. */,
-        "declaration": true /* Generates corresponding '.d.ts' file. */,
-        "sourceMap": true /* Generates corresponding '.map' file. */,
-        "outDir": "./public" /* Redirect output structure to the directory. */,
-
-        /* Checks */
-        "strict": true /* Enable all strict type-checking options. */,
-        "noUnusedLocals": true /* Report errors on unused locals. */,
-        "noUnusedParameters": true /* Report errors on unused parameters. */,
-        "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
-        "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
-
-        /* Module Resolution Options */
-        "moduleResolution": "node" /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */,
-        "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
-
-        /* Advanced Options */
-        "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-        "resolveJsonModule": true,
-        "pretty": false,
-        "skipLibCheck": true
-    },
-    "include": ["src/"],
-    "compileOnSave": false
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "./public",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "pretty": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": true,
+  },
+  "exclude": ["dist", "node_modules"],
+  "include": ["src"]
 }
