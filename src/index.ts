@@ -1,7 +1,7 @@
 import type { IZipEntry } from 'adm-zip';
 import type { Context, Probot } from 'probot';
 
-import { ScreenshotBot, SlackLogger } from './classes';
+import { ScreenshotBot } from './classes';
 import { BotReportMessage } from './constants';
 import {
     getWorkflowBranch,
@@ -128,38 +128,16 @@ const EVENTS_CALLBACKS = {
     },
 } as const;
 
-const logError = (step: string, context: Context, error: unknown) => {
-    const slackLogger = new SlackLogger();
-
-    return slackLogger.sendError(step, context, error);
-};
-
 export default (app: Probot) => {
     app.on(RepositoryEvent.WorkflowRunRequested, async (context) => {
-        try {
-            await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](
-                context
-            );
-        } catch (err) {
-            await logError(RepositoryEvent.WorkflowRunRequested, context, err);
-        }
+        await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](context);
     });
 
     app.on(RepositoryEvent.WorkflowRunCompleted, async (context) => {
-        try {
-            await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunCompleted](
-                context
-            );
-        } catch (err) {
-            await logError(RepositoryEvent.WorkflowRunCompleted, context, err);
-        }
+        await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunCompleted](context);
     });
 
     app.on(RepositoryEvent.PRClosed, async (context) => {
-        try {
-            await EVENTS_CALLBACKS[RepositoryEvent.PRClosed](context);
-        } catch (err) {
-            await logError(RepositoryEvent.PRClosed, context, err);
-        }
+        await EVENTS_CALLBACKS[RepositoryEvent.PRClosed](context);
     });
 };
