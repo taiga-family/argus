@@ -497,18 +497,19 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
         const { workflowWithTests, branchesIgnore } = this.botConfigs;
 
-        const workflowWithNoTests =
-            !workflowName ||
-            !workflowWithTests.some((regExp) =>
-                new RegExp(regExp, 'gi').test(workflowName)
-            );
+        const hasTests =
+            process.env.GITHUB_ACTIONS ||
+            (workflowName &&
+                workflowWithTests.some((regExp) =>
+                    new RegExp(regExp, 'gi').test(workflowName)
+                ));
         const branchIgnored =
             !!workflowBranch &&
             branchesIgnore.some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowBranch)
             );
 
-        return workflowWithNoTests || branchIgnored;
+        return !hasTests || branchIgnored;
     }
 
     async deleteUploadedImagesFolder(prNumber: number) {
