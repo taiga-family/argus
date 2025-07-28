@@ -22,8 +22,7 @@ export function findScreenshotDiffImages(
     screenshotsDiffsPaths?: string[]
 ): IZipEntry[] {
     const files = getFilesFromZipFile(zipFile);
-    const diffsPaths =
-        screenshotsDiffsPaths || DEFAULT_BOT_CONFIGS.screenshotsDiffsPaths;
+    const diffsPaths = screenshotsDiffsPaths || DEFAULT_BOT_CONFIGS.diffPaths;
 
     return files
         .filter((file) =>

@@ -27,6 +27,9 @@ on:
     workflow_run:
         workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
         types: [requested, completed]
+        branches-ignore:
+          - 'main'
+          - 'release/**'
     pull_request:
         types: [closed]
 
@@ -64,23 +67,21 @@ To pass custom params for bot you should create `screenshot-bot.config.yml` file
 ```yaml
 # array of RegExp strings to match images inside artifacts (by their path or file name)
 # which shows difference between two screenshot and which will be added to bot report comment
-screenshotsDiffsPaths: [
+diff-paths: [
         # it is default Cypress folder name into which snapshot diffs are put
         '.*__diff_output__.*',
     ]
 
-# Regular expression string to match images inside artifacts (by their path or file name)
-# which are created by new screenshot tests.
-newScreenshotMark: '.*==new==.*'
-
-# array of RegExp strings to match branch names which should be skipped by bot
-branchesIgnore: []
-
 # array of attributes (key="value") for html-tag <img /> (screenshots)
-screenshotImageAttrs: ['height="300px"']
+# e.g. ['width="200px"', 'height="300px"']
+img-attrs: []
 
 # Text which is placed at the beginning of section "Failed tests"
-failedTestsReportDescription: ''
+failed-report-description: ''
+
+# Regular expression string to match images inside artifacts (by their path or file name)
+# which are created by new screenshot tests.
+new-screenshot-mark: '.*==new==.*'
 
 ##################################
 # Not relevant for GitHub Action #
@@ -88,10 +89,13 @@ failedTestsReportDescription: ''
 
 # array of regular expression strings to match workflow names
 # which should be watched by bot
-workflowWithTests: [
+workflows: [
         # all workflows with sub-string "screenshot" in their names
         '.*screenshot.*',
     ]
+
+# array of RegExp strings to match branch names which should be skipped by bot
+branches-ignore: []
 ```
 
 ## What bot can do? :bulb:

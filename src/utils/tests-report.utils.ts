@@ -44,8 +44,8 @@ ${
     failedTests.length
         ? createReport('Failed tests :x:', failedTests, {
               allOpen: true,
-              description: botConfigs.failedTestsReportDescription,
-              imageAttrs: botConfigs.screenshotImageAttrs,
+              description: botConfigs.failedReportDescription,
+              imageAttrs: botConfigs.imgAttrs,
           })
         : ''
 }
@@ -54,7 +54,7 @@ ${
     newTests.length
         ? createReport('New tests :test_tube:', newTests, {
               allOpen: false,
-              imageAttrs: botConfigs.screenshotImageAttrs,
+              imageAttrs: botConfigs.imgAttrs,
           })
         : ''
 }

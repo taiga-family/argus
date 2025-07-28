@@ -4,13 +4,13 @@ export interface IBotConfigs {
      * which should be watched by bot
      * @example ['.*screenshot.*']
      */
-    workflowWithTests?: string[];
+    workflows?: string[];
     /**
      * array of regular expression strings to match images inside artifacts (by their path or file name)
      * which shows difference between two screenshot and which will be added to bot report comment
      * @example ['.*__diff_output__.*']
      */
-    screenshotsDiffsPaths?: string[];
+    diffPaths?: string[];
     /**
      * Regular expression string to match images inside artifacts (by their path or file name)
      * which are created by new screenshot tests.
@@ -29,11 +29,11 @@ export interface IBotConfigs {
      * ___
      * @example ['width="200px"', 'height="300px"']
      */
-    screenshotImageAttrs: string[];
+    imgAttrs: string[];
     /**
      * Text which is placed at the beginning of section "Failed tests"
      * ___
      * @example **After <= Diff => Before**
      */
-    failedTestsReportDescription: string;
+    failedReportDescription: string;
 }
