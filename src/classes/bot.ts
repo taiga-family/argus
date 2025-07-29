@@ -25,6 +25,7 @@ import {
     checkContainsHiddenLabel,
     findNewScreenshotImages,
     findScreenshotDiffImages,
+    getBotConfigFromActionInputs,
     markCommentWithHiddenLabel,
 } from '../utils';
 
@@ -391,7 +392,25 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     async getBotConfigs(
         branch: string = DEFAULT_MAIN_BRANCH
     ): Promise<Required<IBotConfigs>> {
-        return this.botConfigs || this.loadBotConfigs(branch);
+        if (this.botConfigs) {
+            return this.botConfigs;
+        }
+
+        // First check for GitHub Action inputs
+        const actionInputConfig = getBotConfigFromActionInputs();
+        
+        if (actionInputConfig) {
+            // Merge action inputs with defaults
+            this.botConfigs = {
+                ...DEFAULT_BOT_CONFIGS,
+                ...actionInputConfig,
+            };
+            return this.botConfigs;
+        }
+
+        // Fall back to config file
+        this.botConfigs = await this.loadBotConfigs(branch);
+        return this.botConfigs;
     }
 
     async getPrevBotReportComment(prNumber: number) {
