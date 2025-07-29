@@ -26,7 +26,6 @@ import {
     findNewScreenshotImages,
     findScreenshotDiffImages,
     markCommentWithHiddenLabel,
-    toCamelCase,
 } from '../utils';
 
 export abstract class Bot<T extends EmitterWebhookEventName> {
@@ -384,11 +383,9 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 repo,
                 branch,
                 path: `.github/${BOT_CONFIGS_FILE_NAME}`,
+                defaults: DEFAULT_BOT_CONFIGS,
             })
-            .then(({ config }) => Object.entries(config))
-            .then((entries) => entries.map(([k, v]) => [toCamelCase(k), v]))
-            .then(Object.fromEntries)
-            .then((configs) => ({ ...DEFAULT_BOT_CONFIGS, ...configs }));
+            .then(({ config }) => config);
     }
 
     async getBotConfigs(
@@ -450,7 +447,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
             findNewScreenshotImages(
                 zipFile,
-                this.botConfigs?.newScreenshotMark
+                this.botConfigs?.['new-screenshot-mark']
             );
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
@@ -461,7 +458,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         branch: string
     ): Promise<IZipEntry[]> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
-            findScreenshotDiffImages(zipFile, this.botConfigs?.diffPaths);
+            findScreenshotDiffImages(zipFile, this.botConfigs?.['diff-paths']);
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
@@ -495,17 +492,15 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
 
-        const { workflows, branchesIgnore } = this.botConfigs;
-
         const hasTests =
             process.env.GITHUB_ACTIONS ||
             (workflowName &&
-                workflows.some((regExp) =>
+                this.botConfigs.workflows.some((regExp) =>
                     new RegExp(regExp, 'gi').test(workflowName)
                 ));
         const branchIgnored =
             !!workflowBranch &&
-            branchesIgnore.some((regExp) =>
+            this.botConfigs['branches-ignore'].some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowBranch)
             );
 
