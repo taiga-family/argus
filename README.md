@@ -28,8 +28,8 @@ on:
         workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
         types: [requested, completed]
         branches-ignore:
-          - 'main'
-          - 'release/**'
+            - 'main'
+            - 'release/**'
     pull_request:
         types: [closed]
 
