@@ -2,13 +2,13 @@ name: 'Argus'
 description: "Watch for repository's workflows with tests and pin screenshot differences images to bot's comment of pull request"
 inputs:
     diff-paths:
-        description: 'Array of regular expression strings to match images inside artifacts (by their path or file name) which shows difference between two screenshots. Can be provided as multiline string or JSON array.'
+        description: 'Array of regular expression strings to match images inside artifacts (by their path or file name) which shows difference between two screenshots. Can be provided as multiline string.'
         required: false
-        default: ''
+        default: '.*__diff_output__.*'
     img-attrs:
-        description: 'Array of attributes (key="value") for html-tag <img /> (screenshots). Can be provided as multiline string or JSON array.'
+        description: 'Array of attributes (key="value") for html-tag <img /> (screenshots). Can be provided as multiline string.'
         required: false
-        default: ''
+        default: 'height="300"'
     failed-report-description:
         description: 'Text which is placed at the beginning of section "Failed tests"'
         required: false
@@ -16,11 +16,7 @@ inputs:
     new-screenshot-mark:
         description: 'Regular expression string to match images inside artifacts (by their path or file name) which are created by new screenshot tests.'
         required: false
-        default: ''
-    branches-ignore:
-        description: 'Array of regular expression strings to match branch names which should be skipped by bot. Can be provided as multiline string or JSON array.'
-        required: false
-        default: ''
+        default: '.*==new==.*'
 runs:
     using: 'node20'
     main: 'public/index.js'

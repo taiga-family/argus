@@ -396,20 +396,17 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             return this.botConfigs;
         }
 
-        // First check for GitHub Action inputs
+        // Get config from all sources
         const actionInputConfig = getBotConfigFromActionInputs();
-        
-        if (actionInputConfig) {
-            // Merge action inputs with defaults
-            this.botConfigs = {
-                ...DEFAULT_BOT_CONFIGS,
-                ...actionInputConfig,
-            };
-            return this.botConfigs;
-        }
+        const fileConfig = await this.loadBotConfigs(branch);
 
-        // Fall back to config file
-        this.botConfigs = await this.loadBotConfigs(branch);
+        // Merge configs with proper priority: action inputs (highest) > config file > defaults
+        this.botConfigs = {
+            ...DEFAULT_BOT_CONFIGS,
+            ...fileConfig,
+            ...(actionInputConfig || {}),
+        };
+
         return this.botConfigs;
     }
 

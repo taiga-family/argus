@@ -23,9 +23,8 @@ However, its deployment as GitHub App is option too.
 
 You can configure the bot using GitHub Action inputs (recommended) or a configuration file.
 
-#### Option 1: Using Action Inputs (Recommended)
+#### Using Action Inputs (Recommended)
 
-**Multiline String Format:**
 ```yml
 # .github/workflows/screenshot-bot.yml
 on:
@@ -56,34 +55,7 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**JSON Format:**
-```yml
-# .github/workflows/screenshot-bot.yml
-on:
-    workflow_run:
-        workflows: [E2E Results]
-        types: [requested, completed]
-    pull_request:
-        types: [closed]
-
-jobs:
-    awake-screenshot-bot:
-        runs-on: ubuntu-latest
-        permissions:
-            actions: read
-            contents: write
-            pull-requests: write
-        steps:
-            - uses: taiga-family/argus
-              with:
-                  diff-paths: ${{ toJSON(['.*__diff_output__.*', '.*.diff.png']) }}
-                  img-attrs: ${{ toJSON(['width="200px"', 'height="300px"']) }}
-                  failed-report-description: '<h3 align="center">Before (main) ← Diff → After (local)</h3>'
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-#### Option 2: Using Configuration File (Legacy)
+#### Using Configuration File (Legacy)
 
 ```yml
 # .github/workflows/screenshot-bot.yml
@@ -120,27 +92,22 @@ After deployment:
 
 When using the bot as a GitHub Action, you can configure it using the following inputs:
 
-| Input | Description | Required | Default | Example |
-|-------|-------------|----------|---------|---------|
-| `diff-paths` | Array of RegExp strings to match images inside artifacts (by their path or file name) which shows difference between two screenshots | No | `['.*__diff_output__.*']` | See examples above |
-| `img-attrs` | Array of attributes (key="value") for html-tag `<img />` (screenshots) | No | `['height="300"']` | `'width="200px"'`<br>`'height="300px"'` |
-| `failed-report-description` | Text which is placed at the beginning of section "Failed tests" | No | `''` | `'<h3>Before ← Diff → After</h3>'` |
-| `new-screenshot-mark` | RegExp string to match images inside artifacts (by their path or file name) which are created by new screenshot tests | No | `'.*==new==.*'` | `'.*new.*'` |
-| `branches-ignore` | Array of RegExp strings to match branch names which should be skipped by bot | No | `[]` | `'release/.*'`<br>`'hotfix/.*'` |
+| Input                       | Description                                                                                                                          | Required | Default                   | Example                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------- | --------------------------------------- |
+| `diff-paths`                | Array of RegExp strings to match images inside artifacts (by their path or file name) which shows difference between two screenshots | No       | `['.*__diff_output__.*']` | See example above                       |
+| `img-attrs`                 | Array of attributes (key="value") for html-tag `<img />` (screenshots)                                                               | No       | `['height="300"']`        | `'width="200px"'`<br>`'height="300px"'` |
+| `failed-report-description` | Text which is placed at the beginning of section "Failed tests"                                                                      | No       | `''`                      | `'<h3>Before ← Diff → After</h3>'`      |
+| `new-screenshot-mark`       | RegExp string to match images inside artifacts (by their path or file name) which are created by new screenshot tests                | No       | `'.*==new==.*'`           | `'.*new.*'`                             |
 
-**Array Input Formats:**
+**Array Input Format:**
 
-Both multiline string and JSON formats are supported for array inputs:
+Array inputs should be provided as multiline strings where each line represents one array element:
 
 ```yml
-# Multiline format (recommended for readability)
 diff-paths: |-
     '.*__diff_output__.*'
     '.*.diff.png'
     'cypress/screenshots/.*'
-
-# JSON format (compact)
-diff-paths: ${{ toJSON(['.*__diff_output__.*', '.*.diff.png', 'cypress/screenshots/.*']) }}
 ```
 
 ## Bot configurations :gear:
@@ -165,9 +132,6 @@ screenshotsDiffsPaths: [
 # Regular expression string to match images inside artifacts (by their path or file name)
 # which are created by new screenshot tests.
 newScreenshotMark: '.*==new==.*'
-
-# array of RegExp strings to match branch names which should be skipped by bot
-branchesIgnore: []
 
 # array of attributes (key="value") for html-tag <img /> (screenshots)
 screenshotImageAttrs: ['height="300px"']
