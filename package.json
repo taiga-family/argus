@@ -1,6 +1,6 @@
 {
     "name": "argus",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "private": true,
     "description": "GitHub App to watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request.",
     "author": "Barsukov Nikita <nikita.s.barsukov@gmail.com>",

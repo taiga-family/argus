@@ -447,7 +447,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
             findNewScreenshotImages(
                 zipFile,
-                this.botConfigs?.newScreenshotMark
+                this.botConfigs?.['new-screenshot-mark']
             );
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
@@ -458,10 +458,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         branch: string
     ): Promise<IZipEntry[]> {
         const filterFn = (zipFile: ArrayBuffer | Buffer) =>
-            findScreenshotDiffImages(
-                zipFile,
-                this.botConfigs?.screenshotsDiffsPaths
-            );
+            findScreenshotDiffImages(zipFile, this.botConfigs?.['diff-paths']);
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
@@ -495,17 +492,15 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
 
-        const { workflowWithTests, branchesIgnore } = this.botConfigs;
-
         const hasTests =
             process.env.GITHUB_ACTIONS ||
             (workflowName &&
-                workflowWithTests.some((regExp) =>
+                this.botConfigs.workflows.some((regExp) =>
                     new RegExp(regExp, 'gi').test(workflowName)
                 ));
         const branchIgnored =
             !!workflowBranch &&
-            branchesIgnore.some((regExp) =>
+            this.botConfigs['branches-ignore'].some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowBranch)
             );
 

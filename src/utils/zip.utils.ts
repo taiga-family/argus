@@ -14,7 +14,7 @@ export function getFilesFromZipFile(
 }
 
 function isImage(file: IZipEntry): boolean {
-    return new RegExp('\\.(png|jpeg|jpg|gif|svg)$', 'gi').test(file.entryName);
+    return /\.(png|jpeg|jpg|gif|svg)$/gi.test(file.entryName);
 }
 
 export function findScreenshotDiffImages(
@@ -23,7 +23,7 @@ export function findScreenshotDiffImages(
 ): IZipEntry[] {
     const files = getFilesFromZipFile(zipFile);
     const diffsPaths =
-        screenshotsDiffsPaths || DEFAULT_BOT_CONFIGS.screenshotsDiffsPaths;
+        screenshotsDiffsPaths || DEFAULT_BOT_CONFIGS['diff-paths'];
 
     return files
         .filter((file) =>
@@ -40,7 +40,7 @@ export function findNewScreenshotImages(
 ) {
     return getFilesFromZipFile(zipFile).filter((file) =>
         new RegExp(
-            newScreenshotMark || DEFAULT_BOT_CONFIGS.newScreenshotMark,
+            newScreenshotMark || DEFAULT_BOT_CONFIGS['new-screenshot-mark'],
             'gi'
         ).test(file.entryName)
     );
