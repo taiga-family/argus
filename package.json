@@ -25,7 +25,7 @@
         "probot": "13.4.7"
     },
     "devDependencies": {
-        "@octokit/types": "12.6.0",
+        "@octokit/types": "16.0.0",
         "@probot/adapter-github-actions": "4.0.3",
         "@rollup/plugin-commonjs": "28.0.9",
         "@rollup/plugin-json": "6.1.0",
