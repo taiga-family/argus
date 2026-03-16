@@ -34,7 +34,7 @@
         "@tinkoff/eslint-config": "3.0.0",
         "@tinkoff/eslint-config-angular": "3.0.0",
         "@tinkoff/prettier-config": "3.0.0",
-        "@types/adm-zip": "0.5.7",
+        "@types/adm-zip": "0.5.8",
         "@types/node": "22.19.9",
         "concurrently": "9.2.1",
         "rollup": "4.59.0",
