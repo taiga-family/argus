@@ -21,7 +21,7 @@
         "build": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript"
     },
     "dependencies": {
-        "adm-zip": "0.5.16",
+        "adm-zip": "0.5.17",
         "probot": "13.4.7"
     },
     "devDependencies": {
