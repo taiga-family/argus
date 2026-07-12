@@ -11,8 +11,7 @@ and pin these images to bot's comment of pull request.
 
 Read more about this tool:
 
--   [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/its-tinkoff/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4) (English)
--   [«Боты должны работать, разработчики должны думать»: пишем Github App на Node.js](https://habr.com/ru/company/tbank/blog/580936/) (Russian)
+-   [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/its-tinkoff/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4)
 
 ## Setup :rocket:
 
