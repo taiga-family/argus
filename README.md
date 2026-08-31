@@ -9,7 +9,7 @@ download artifacts with screenshots differences images, and pin these images to 
 
 Read more about this tool:
 
-- [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/its-tinkoff/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4)
+- [«Bots should work, developers should think»: Writing Github App with Node.js](https://medium.com/@nsbarsukov/bots-should-work-developers-should-think-writing-github-app-with-node-js-2e8eb049d7e4)
 
 ## Setup :rocket:
 
