@@ -1,4 +1,4 @@
-import type { IBotConfigs } from '../types';
+import {type IBotConfigs} from '../types';
 
 export const BOT_CONFIGS_FILE_NAME = 'screenshot-bot.config.yml';
 

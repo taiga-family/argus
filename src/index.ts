@@ -1,8 +1,7 @@
-import type { IZipEntry } from 'adm-zip';
-import type { Context, Probot } from 'probot';
+import {type Context, type Probot} from 'probot';
 
-import { ScreenshotBot } from './classes';
-import { BotReportMessage } from './constants';
+import {ScreenshotBot} from './classes';
+import {BotReportMessage} from './constants';
 import {
     getWorkflowBranch,
     getWorkflowHeadSha,
@@ -10,21 +9,21 @@ import {
     getWorkflowRunConclusion,
     getWorkflowRunId,
 } from './selectors';
-import { getFailureReport, zip } from './utils';
+import {getFailureReport, zip} from './utils';
 
-const enum RepositoryEvent {
-    WorkflowRunCompleted = 'workflow_run.completed',
+const RepositoryEvent = {
+    WorkflowRunCompleted: 'workflow_run.completed',
     /**
      * WARNING: "Re-run all jobs" button does not trigger worklow_run.requested event
      * see {@link https://github.com/actions/runner/issues/726 github issue}
      * */
-    WorkflowRunRequested = 'workflow_run.requested',
-    PRClosed = 'pull_request.closed',
-}
+    WorkflowRunRequested: 'workflow_run.requested',
+    PRClosed: 'pull_request.closed',
+} as const;
 
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
-        context: Context<'workflow_run.completed'>
+        context: Context<'workflow_run.completed'>,
     ) => {
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
         const workflowName = getWorkflowName(context);
@@ -40,10 +39,7 @@ const EVENTS_CALLBACKS = {
         }
 
         if (getWorkflowRunConclusion(context) === 'success') {
-            return bot.createOrUpdateReport(
-                prNumber,
-                BotReportMessage.SuccessWorkflow
-            );
+            return bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
         }
 
         const workflowRunId = getWorkflowRunId(context);
@@ -52,27 +48,27 @@ const EVENTS_CALLBACKS = {
             return;
         }
 
-        const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(
-            workflowRunId
-        );
+        const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
         const failedTestsImages = await bot.getScreenshotDiffImages(
             artifacts,
-            workflowBranch
+            workflowBranch,
         );
+
         const failedTestsImagesUrls = await bot.uploadImages(
             failedTestsImages.map((image) => image.getData()),
             prNumber,
-            workflowRunId
+            workflowRunId,
         );
 
-        const newTestsImages: IZipEntry[] = await bot.getNewScreenshotImages(
+        const newTestsImages = await bot.getNewScreenshotImages(
             artifacts,
-            workflowBranch
+            workflowBranch,
         );
-        const newTestsImagesUrls: string[] = await bot.uploadImages(
+
+        const newTestsImagesUrls = await bot.uploadImages(
             newTestsImages.map((image) => image.getData()),
             prNumber,
-            workflowRunId
+            workflowRunId,
         );
 
         const botConfigs = await bot.getBotConfigs();
@@ -81,14 +77,14 @@ const EVENTS_CALLBACKS = {
                 ? getFailureReport(
                       zip(failedTestsImages, failedTestsImagesUrls),
                       zip(newTestsImages, newTestsImagesUrls),
-                      { commitSha, botConfigs }
+                      {commitSha, botConfigs},
                   )
                 : BotReportMessage.FailedWorkflowNoScreenshots;
 
         return bot.createOrUpdateReport(prNumber, reportText);
     },
     [RepositoryEvent.WorkflowRunRequested]: async (
-        context: Context<'workflow_run.requested'>
+        context: Context<'workflow_run.requested'>,
     ) => {
         const bot = new ScreenshotBot<'workflow_run.requested'>(context);
         const workflowName = getWorkflowName(context);
@@ -102,14 +98,9 @@ const EVENTS_CALLBACKS = {
             return;
         }
 
-        return bot.createOrUpdateReport(
-            prNumber,
-            BotReportMessage.LoadingWorkflow
-        );
+        return bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
     },
-    [RepositoryEvent.PRClosed]: async (
-        context: Context<'pull_request.closed'>
-    ) => {
+    [RepositoryEvent.PRClosed]: async (context: Context<'pull_request.closed'>) => {
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
         const prNumber = context.payload.number;
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
@@ -118,17 +109,14 @@ const EVENTS_CALLBACKS = {
             oldBotComment?.id &&
             bot
                 .deleteUploadedImagesFolder(prNumber)
-                .then(() =>
-                    bot.createOrUpdateReport(
-                        prNumber,
-                        BotReportMessage.PRClosed
-                    )
+                .then(async () =>
+                    bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed),
                 )
         );
     },
 } as const;
 
-export default (app: Probot) => {
+export default (app: Probot): void => {
     app.on(RepositoryEvent.WorkflowRunRequested, async (context) => {
         await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](context);
     });

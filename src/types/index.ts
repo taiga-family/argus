@@ -1,1 +1,1 @@
-export * from './bot-configs.types';
+export type * from './bot-configs.types';

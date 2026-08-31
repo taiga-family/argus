@@ -1,4 +1,4 @@
-import { createNodeMiddleware, createProbot } from 'probot';
+import {createNodeMiddleware, createProbot} from 'probot';
 
 import app from '../../../public/index';
 
