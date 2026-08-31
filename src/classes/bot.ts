@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-
-import type { EmitterWebhookEventName } from '@octokit/webhooks';
-import type { IZipEntry } from 'adm-zip';
-import type { Context } from 'probot';
+import {type EmitterWebhookEventName} from '@octokit/webhooks';
+import {type IZipEntry} from 'adm-zip';
+import {type Context, type ProbotOctokit} from 'probot';
 
 import {
     BOT_CONFIGS_FILE_NAME,
@@ -20,7 +18,7 @@ import {
     getWorkflowPrNumbers,
     isWorkflowContext,
 } from '../selectors';
-import type { IBotConfigs } from '../types';
+import {type IBotConfigs} from '../types';
 import {
     checkContainsHiddenLabel,
     findNewScreenshotImages,
@@ -28,8 +26,18 @@ import {
     markCommentWithHiddenLabel,
 } from '../utils';
 
+type OctokitResponse<M extends (...args: never[]) => unknown> = Awaited<ReturnType<M>>;
+
+type IssueComment = OctokitResponse<
+    ProbotOctokit['rest']['issues']['listComments']
+>['data'][number];
+
 export abstract class Bot<T extends EmitterWebhookEventName> {
-    constructor(protected context: Context<T>) {}
+    protected context: Context<T>;
+
+    constructor(context: Context<T>) {
+        this.context = context;
+    }
 
     /**
      * Send comment to the issue
@@ -44,7 +52,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * @param issueNumber number
      * @param markdownText string (optionally, can include markdown syntax)
      */
-    async sendComment(issueNumber: number, markdownText: string) {
+    public async sendComment(
+        issueNumber: number,
+        markdownText: string,
+    ): Promise<OctokitResponse<ProbotOctokit['issues']['createComment']>> {
         const comment = this.context.repo({
             body: markdownText,
             issue_number: issueNumber,
@@ -65,7 +76,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * @param commentId number
      * @param newMarkdownContent string (optionally, can include markdown syntax)
      */
-    async updateComment(commentId: number, newMarkdownContent: string) {
+    public async updateComment(
+        commentId: number,
+        newMarkdownContent: string,
+    ): Promise<OctokitResponse<ProbotOctokit['rest']['issues']['updateComment']>> {
         return this.context.octokit.rest.issues.updateComment({
             ...this.context.repo(),
             comment_id: commentId,
@@ -82,13 +96,13 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * GitHub App must have the **issues:read**
      * (or **pull_requests:read** if you are working only with PRs) permission to use this endpoints.
      */
-    async getCommentsByIssueId(issueNumber: number) {
+    public async getCommentsByIssueId(issueNumber: number): Promise<IssueComment[]> {
         return this.context.octokit.rest.issues
             .listComments({
                 ...this.context.repo(),
                 issue_number: issueNumber,
             })
-            .then(({ data }) => data);
+            .then(({data}) => data);
     }
 
     /**
@@ -100,24 +114,26 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      *
      * GitHub App must have the **actions:read** permission to use these endpoints.
      */
-    async getWorkflowArtifacts<F>(workflowRunId: number): Promise<F[]> {
-        const workflowRunInfo = this.context.repo({
-            run_id: workflowRunId,
-        });
+    public async getWorkflowArtifacts<F>(workflowRunId: number): Promise<F[]> {
+        const workflowRunInfo = this.context.repo({run_id: workflowRunId});
 
         const artifactsInfo = await this.context.octokit.actions
             .listWorkflowRunArtifacts(workflowRunInfo)
             .catch(() => null);
-        const artifacts = (artifactsInfo && artifactsInfo.data.artifacts) || [];
+
+        const artifacts = artifactsInfo?.data.artifacts ?? [];
 
         if (artifacts.length) {
-            const artifactsMetas = artifacts.map(({ id }) =>
-                this.context.repo({ artifact_id: id, archive_format: 'zip' })
+            const artifactsMetas = artifacts.map(({id}) =>
+                this.context.repo({artifact_id: id, archive_format: 'zip'}),
             );
-            const artifactsRequests = artifactsMetas.map((meta) =>
+
+            // https://github.com/probot/probot/issues/1680
+            // @ts-ignore TS2590: Expression produces a union type that is too complex to represent.
+            const artifactsRequests = artifactsMetas.map(async (meta): Promise<F> =>
                 this.context.octokit.actions
                     .downloadArtifact(meta)
-                    .then(({ data }) => data as F)
+                    .then(({data}) => data as F),
             );
 
             return Promise.all(artifactsRequests);
@@ -137,7 +153,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * @param path file location (from root of repo)
      * @param targetConfigs info about target repository
      */
-    async getFile(
+    public async getFile(
         path: string,
         {
             branch,
@@ -149,8 +165,8 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             owner?: string;
             /** Repository name. Default: takes value from `context.repo()` */
             repo?: string;
-        }
-    ) {
+        },
+    ): Promise<OctokitResponse<ProbotOctokit['repos']['getContent']> | null> {
         const repoInfo = this.context.repo();
 
         return this.context.octokit.repos
@@ -171,9 +187,11 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      *
      * GitHub App must have the **contents:read** permission to use this endpoints.
      */
-    async getBranchInfo(branch: string) {
+    public async getBranchInfo(
+        branch: string,
+    ): Promise<OctokitResponse<ProbotOctokit['rest']['repos']['getBranch']> | null> {
         return this.context.octokit.rest.repos
-            .getBranch({ ...this.context.repo(), branch })
+            .getBranch({...this.context.repo(), branch})
             .catch(() => null);
     }
 
@@ -189,7 +207,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * @param fromBranch from which to create new branch
      * (if branch param is not provided it tries to parse repository’s default branch or use {@link DEFAULT_MAIN_BRANCH})
      */
-    async createBranch(branch: string, fromBranch?: string) {
+    public async createBranch(
+        branch: string,
+        fromBranch?: string,
+    ): Promise<OctokitResponse<ProbotOctokit['rest']['git']['createRef']> | undefined> {
         if (await this.getBranchInfo(branch)) {
             return;
         }
@@ -198,8 +219,9 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             'repository' in this.context.payload
                 ? this.context.payload.repository?.default_branch
                 : '';
+
         const fromBranchInfo = await this.getBranchInfo(
-            fromBranch || currentRepoDefaultBranch || DEFAULT_MAIN_BRANCH
+            fromBranch || currentRepoDefaultBranch || DEFAULT_MAIN_BRANCH,
         );
 
         if (!fromBranchInfo) {
@@ -216,15 +238,15 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
     /**
      * Upload multiple files to a separate branch under a single commit.
      */
-    async uploadFiles({
+    public async uploadFiles({
         files,
         branch,
         commitMessage,
     }: {
-        files: ReadonlyArray<{ path: string; content: Buffer }>;
+        files: ReadonlyArray<{path: string; content: Buffer}>;
         commitMessage: string;
         branch: string;
-    }) {
+    }): Promise<string[]> {
         if (!files.length) {
             return [];
         }
@@ -235,18 +257,17 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             commitMessage,
         });
 
-        const { repo, owner } = this.context.repo();
+        const {repo, owner} = this.context.repo();
 
         return files.map(
-            ({ path }) =>
-                `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`
+            ({path}) => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`,
         );
     }
 
     /**
      * Delete files in the following branch.
      */
-    async deleteFiles({
+    public async deleteFiles({
         paths,
         commitMessage,
         branch,
@@ -254,13 +275,13 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         paths: string[];
         commitMessage: string;
         branch: string;
-    }) {
+    }): Promise<void> {
         if (!paths.length) {
             return;
         }
 
         await this.createCommit({
-            files: paths.map((path) => ({ path, content: null })),
+            files: paths.map((path) => ({path, content: null})),
             branch,
             commitMessage,
         });
@@ -274,7 +295,9 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      *
      * GitHub App must have the **pull_requests:read** permission to use this endpoints.
      */
-    async getPRsList() {
+    public async getPRsList(): Promise<
+        OctokitResponse<ProbotOctokit['rest']['pulls']['list']>
+    > {
         return this.context.octokit.rest.pulls.list(this.context.repo());
     }
 
@@ -293,10 +316,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         branch,
         commitMessage,
     }: {
-        files: ReadonlyArray<{ path: string; content: Buffer | null }>;
+        files: ReadonlyArray<{path: string; content: Buffer | null}>;
         commitMessage: string;
         branch: string;
-    }) {
+    }): Promise<void> {
         if (!files.length) {
             throw new Error('[createCommit] Empty array is forbidden');
         }
@@ -305,16 +328,16 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         const storageBranchRef = `heads/${branch}`;
 
         const filesNewSha = await Promise.all(
-            files.map(({ content, path }) => {
+            files.map(async ({content, path}) => {
                 const blobs = content
-                    ? this.createBlob(content).then(({ sha }) => sha)
+                    ? this.createBlob(content).then(({sha}) => sha)
                     : Promise.resolve(null);
 
                 return blobs.then((sha) => ({
                     path,
                     sha,
                 }));
-            })
+            }),
         );
 
         const baseTreeSha = await this.context.octokit.git
@@ -322,12 +345,12 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
                 ...repo,
                 ref: storageBranchRef,
             })
-            .then(({ data }) => data.object.sha);
+            .then(({data}) => data.object.sha);
 
         const newTreeSha = await this.context.octokit.git
             .createTree({
                 ...repo,
-                tree: filesNewSha.map(({ path, sha }) => ({
+                tree: filesNewSha.map(({path, sha}) => ({
                     path,
                     sha,
                     type: 'blob',
@@ -335,7 +358,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
                 })),
                 base_tree: baseTreeSha,
             })
-            .then(({ data }) => data.sha);
+            .then(({data}) => data.sha);
 
         const commitSha = await this.context.octokit.git
             .createCommit({
@@ -344,7 +367,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
                 parents: [baseTreeSha],
                 message: commitMessage,
             })
-            .then(({ data }) => data.sha);
+            .then(({data}) => data.sha);
 
         await this.context.octokit.git.updateRef({
             ...repo,
@@ -353,29 +376,30 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         });
     }
 
-    private async createBlob(fileContent: Buffer) {
+    private async createBlob(
+        fileContent: Buffer,
+    ): Promise<OctokitResponse<ProbotOctokit['git']['createBlob']>['data']> {
         return this.context.octokit.git
             .createBlob({
                 ...this.context.repo(),
                 content: fileContent.toString('base64'),
                 encoding: 'base64',
             })
-            .then(({ data }) => data);
+            .then(({data}) => data);
     }
 }
 
 export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: Required<IBotConfigs> | null = null;
 
-    async loadBotConfigs(branch: string): Promise<Required<IBotConfigs>> {
-        let { owner, repo } = this.context.repo();
+    public async loadBotConfigs(branch: string): Promise<Required<IBotConfigs>> {
+        const repoInfo = this.context.repo();
+        const headRepo = isWorkflowContext(this.context)
+            ? getWorkflowHeadRepo(this.context)
+            : null;
 
-        if (isWorkflowContext(this.context)) {
-            const headRepo = getWorkflowHeadRepo(this.context);
-
-            owner = headRepo.owner.login;
-            repo = headRepo.name;
-        }
+        const owner = headRepo?.owner.login ?? repoInfo.owner;
+        const repo = headRepo?.name ?? repoInfo.repo;
 
         return this.context.octokit.config
             .get({
@@ -385,30 +409,38 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 path: `.github/${BOT_CONFIGS_FILE_NAME}`,
                 defaults: DEFAULT_BOT_CONFIGS,
             })
-            .then(({ config }) => config);
+            .then(({config}) => config);
     }
 
-    async getBotConfigs(
-        branch: string = DEFAULT_MAIN_BRANCH
+    public async getBotConfigs(
+        branch: string = DEFAULT_MAIN_BRANCH,
     ): Promise<Required<IBotConfigs>> {
         return this.botConfigs || this.loadBotConfigs(branch);
     }
 
-    async getPrevBotReportComment(prNumber: number) {
+    public async getPrevBotReportComment(prNumber: number): Promise<IssueComment | null> {
         const prComments = await this.getCommentsByIssueId(prNumber);
 
         return (
-            prComments.find(({ body }) =>
-                checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL)
+            prComments.find(({body}) =>
+                checkContainsHiddenLabel(body || '', TEST_REPORT_HIDDEN_LABEL),
             ) || null
         );
     }
 
-    async createOrUpdateReport(prNumber: number, markdownText: string) {
+    public async createOrUpdateReport(
+        prNumber: number,
+        markdownText: string,
+    ): Promise<
+        OctokitResponse<
+            | ProbotOctokit['issues']['createComment']
+            | ProbotOctokit['rest']['issues']['updateComment']
+        >
+    > {
         const oldBotComment = await this.getPrevBotReportComment(prNumber);
         const markedMarkdownText = markCommentWithHiddenLabel(
             markdownText,
-            TEST_REPORT_HIDDEN_LABEL
+            TEST_REPORT_HIDDEN_LABEL,
         );
 
         return oldBotComment?.id
@@ -416,10 +448,10 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             : this.sendComment(prNumber, markedMarkdownText);
     }
 
-    async getImagesByFn(
+    public async getImagesByFn(
         zipFiles: Array<ArrayBuffer | Buffer>,
         fn: (zipFile: ArrayBuffer | Buffer) => IZipEntry[],
-        branch: string
+        branch: string,
     ): Promise<IZipEntry[]> {
         if (!zipFiles.length) {
             return Promise.resolve([]);
@@ -440,41 +472,36 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         return screenshots;
     }
 
-    async getNewScreenshotImages(
+    public async getNewScreenshotImages(
         zipFiles: Array<ArrayBuffer | Buffer>,
-        branch: string
+        branch: string,
     ): Promise<IZipEntry[]> {
-        const filterFn = (zipFile: ArrayBuffer | Buffer) =>
-            findNewScreenshotImages(
-                zipFile,
-                this.botConfigs?.['new-screenshot-mark']
-            );
+        const filterFn = (zipFile: ArrayBuffer | Buffer): IZipEntry[] =>
+            findNewScreenshotImages(zipFile, this.botConfigs?.['new-screenshot-mark']);
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
 
-    async getScreenshotDiffImages(
+    public async getScreenshotDiffImages(
         zipFiles: Array<ArrayBuffer | Buffer>,
-        branch: string
+        branch: string,
     ): Promise<IZipEntry[]> {
-        const filterFn = (zipFile: ArrayBuffer | Buffer) =>
+        const filterFn = (zipFile: ArrayBuffer | Buffer): IZipEntry[] =>
             findScreenshotDiffImages(zipFile, this.botConfigs?.['diff-paths']);
 
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
 
-    async uploadImages(
+    public async uploadImages(
         images: Buffer[],
         prNumber: number,
-        workflowRunId: number
-    ) {
+        workflowRunId: number,
+    ): Promise<string[]> {
         await this.createBranch(STORAGE_BRANCH);
 
         const files = images.map((content, i) => ({
             content,
-            path: `${this.getSavedImagePathPrefix(
-                prNumber
-            )}/${workflowRunId}-${i}.png`,
+            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i}.png`,
         }));
 
         return this.uploadFiles({
@@ -484,9 +511,9 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         });
     }
 
-    async checkShouldSkipWorkflow(
+    public async checkShouldSkipWorkflow(
         workflowName: string,
-        workflowBranch: string
+        workflowBranch: string,
     ): Promise<boolean> {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
@@ -496,26 +523,25 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             process.env.GITHUB_ACTIONS ||
             (workflowName &&
                 this.botConfigs.workflows.some((regExp) =>
-                    new RegExp(regExp, 'gi').test(workflowName)
+                    new RegExp(regExp, 'gi').test(workflowName),
                 ));
+
         const branchIgnored =
             !!workflowBranch &&
             this.botConfigs['branches-ignore'].some((regExp) =>
-                new RegExp(regExp, 'gi').test(workflowBranch)
+                new RegExp(regExp, 'gi').test(workflowBranch),
             );
 
         return !hasTests || branchIgnored;
     }
 
-    async deleteUploadedImagesFolder(prNumber: number) {
-        const folder = await this.getFile(
-            this.getSavedImagePathPrefix(prNumber),
-            { branch: STORAGE_BRANCH }
-        );
+    public async deleteUploadedImagesFolder(prNumber: number): Promise<void> {
+        const folder = await this.getFile(this.getSavedImagePathPrefix(prNumber), {
+            branch: STORAGE_BRANCH,
+        });
+
         const paths =
-            folder && Array.isArray(folder.data)
-                ? folder.data.map(({ path }) => path)
-                : [];
+            folder && Array.isArray(folder.data) ? folder.data.map(({path}) => path) : [];
 
         return this.deleteFiles({
             paths,
@@ -531,7 +557,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
      *
      * In this case bot get PR number in another way (with help of addition API request).
      */
-    async getWorkflowPrNumber(): Promise<number | null> {
+    public async getWorkflowPrNumber(): Promise<number | null> {
         if (!isWorkflowContext(this.context)) {
             return null;
         }
@@ -543,20 +569,17 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
             return prNumber;
         }
 
-        const currentRepoPulls = await this.getPRsList().then(
-            ({ data }) => data
-        );
+        const currentRepoPulls = await this.getPRsList().then(({data}) => data);
         const headSha = getWorkflowHeadSha(this.context);
         const contributionPR =
             currentRepoPulls.find((pr) => pr.head.sha === headSha) || null;
 
-        return contributionPR && contributionPR.number;
+        return contributionPR?.number ?? null;
     }
 
     private getSavedImagePathPrefix(prNumber: number): string {
-        const { repo, owner } = this.context.repo();
+        const {repo, owner} = this.context.repo();
 
         return `${IMAGES_STORAGE_FOLDER}/${owner}-${repo}-${prNumber}`;
     }
 }
-/* eslint-enable @typescript-eslint/naming-convention */

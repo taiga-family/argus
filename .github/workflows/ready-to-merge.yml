@@ -1,21 +1,21 @@
 name: 🤖 PR is ready to merge
 on:
-    pull_request_review:
-        types: [submitted]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
-    label-when-approved:
-        name: Label when approved
-        runs-on: ubuntu-latest
-        if: github.event.review.state == 'approved'
-        steps:
-            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-            - uses: taiga-family/ci/actions/setup/variables@e9c5cd341c28d9aeb357b757df41cddcbb674b2d # v1.222.0
-            - uses: taiga-family/ci/actions/auto/label-when-approved@e9c5cd341c28d9aeb357b757df41cddcbb674b2d # v1.222.0
-              with:
-                  approvals: 1
-                  token: ${{ secrets.GITHUB_TOKEN }}
+  label-when-approved:
+    name: Label when approved
+    runs-on: ubuntu-latest
+    if: github.event.review.state == 'approved'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: taiga-family/ci/actions/setup/variables@e9c5cd341c28d9aeb357b757df41cddcbb674b2d # v1.222.0
+      - uses: taiga-family/ci/actions/auto/label-when-approved@e9c5cd341c28d9aeb357b757df41cddcbb674b2d # v1.222.0
+        with:
+          approvals: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true

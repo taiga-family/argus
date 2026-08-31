@@ -1,10 +1,11 @@
-import type { IZipEntry } from 'adm-zip';
-import type { IBotConfigs } from '../types';
+import {type IZipEntry} from 'adm-zip';
+
+import {type IBotConfigs} from '../types';
 
 const createCollapsibleScreenshot = (
-    [{ entryName }, link]: [IZipEntry, string],
-    initialOpen: boolean = true,
-    imageAttrs: string[] = []
+    [{entryName}, link]: [IZipEntry, string],
+    initialOpen = true,
+    imageAttrs: string[] = [],
 ): string => `
 <details ${initialOpen ? 'open' : ''}>
     <summary><strong>${entryName}</strong></summary>
@@ -19,26 +20,21 @@ const createReport = (
         allOpen = true,
         description = '',
         imageAttrs = [],
-    }: { allOpen?: boolean; description?: string; imageAttrs?: string[] }
+    }: {allOpen?: boolean; description?: string; imageAttrs?: string[]},
 ): string => `
 <h1>${header}</h1>
 
 ${description}
 
 ${screenshotsInfo
-    .map((screenshot) =>
-        createCollapsibleScreenshot(screenshot, allOpen, imageAttrs)
-    )
+    .map((screenshot) => createCollapsibleScreenshot(screenshot, allOpen, imageAttrs))
     .join('')}
 `;
 
 export const getFailureReport = (
     failedTests: Array<[IZipEntry, string]>,
     newTests: Array<[IZipEntry, string]>,
-    {
-        commitSha,
-        botConfigs,
-    }: { botConfigs: Required<IBotConfigs>; commitSha: string }
+    {commitSha, botConfigs}: {botConfigs: Required<IBotConfigs>; commitSha: string},
 ): string => `
 ${
     failedTests.length

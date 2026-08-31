@@ -1,15 +1,15 @@
-export const enum BotReportMessage {
-    LoadingWorkflow = `
+export const BotReportMessage = {
+    LoadingWorkflow: `
 # Tests are running :rocket:\n
 Wait for workflow run with tests to finish :coffee:`,
-    SuccessWorkflow = `
+    SuccessWorkflow: `
 # Tests completed successfully :white_check_mark:\n
 Good job :fire:`,
-    FailedWorkflowNoScreenshots = `
+    FailedWorkflowNoScreenshots: `
 # Workflow with tests failed :x:\n
 I have not found any screenshots diffs. Probably, workflow failed for another reason.\n
 Manually download artifacts of workflow or look into workflow logs to check it.`,
-    PRClosed = `
+    PRClosed: `
 # Pull request was closed :heavy_check_mark:\n
 All saved screenshots (for current PR) were deleted :wastebasket:`,
-}
+} as const;

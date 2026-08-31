@@ -3,9 +3,6 @@
     "version": "3.0.0",
     "private": true,
     "description": "GitHub App to watch for repository's workflows with tests and pin screenshots differences images to bot's comment of pull request.",
-    "author": "Barsukov Nikita <nikita.s.barsukov@gmail.com>",
-    "license": "ISC",
-    "homepage": "https://github.com/taiga-family/argus",
     "keywords": [
         "probot",
         "github",
@@ -14,12 +11,17 @@
         "screenshot",
         "screenshots"
     ],
+    "homepage": "https://github.com/taiga-family/argus",
+    "license": "ISC",
+    "author": "Barsukov Nikita <nikita.s.barsukov@gmail.com>",
     "scripts": {
-        "start:watch": "concurrently --kill-others \"tsc --watch\" \"wait-on ./lib/index.js && probot run ./lib/index.js\"",
+        "build": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+        "lint": "eslint .",
         "prettier": "prettier '**/*.{svg,yml,js,ts,html,md,less,json}'",
         "start": "tsc && probot run ./public/index.js",
-        "build": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript"
+        "start:watch": "concurrently --kill-others \"tsc --watch\" \"wait-on ./lib/index.js && probot run ./lib/index.js\""
     },
+    "prettier": "@taiga-ui/prettier-config",
     "dependencies": {
         "adm-zip": "0.6.0",
         "probot": "13.4.7"
@@ -31,15 +33,14 @@
         "@rollup/plugin-json": "6.1.0",
         "@rollup/plugin-node-resolve": "16.0.3",
         "@rollup/plugin-typescript": "12.3.0",
-        "@tinkoff/eslint-config": "3.0.0",
-        "@tinkoff/eslint-config-angular": "3.0.0",
-        "@tinkoff/prettier-config": "3.0.0",
+        "@taiga-ui/eslint-plugin-experience-next": "0.557.0",
+        "@taiga-ui/prettier-config": "0.557.0",
         "@types/adm-zip": "0.5.8",
         "@types/node": "22.20.1",
         "concurrently": "9.2.4",
         "rollup": "4.62.4",
         "smee-client": "2.0.4",
-        "typescript": "4.9.5",
+        "typescript": "5.9.3",
         "wait-on": "8.0.5"
     },
     "engines": {
