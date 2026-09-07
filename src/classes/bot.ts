@@ -18,7 +18,7 @@ import {
     getWorkflowPrNumbers,
     isWorkflowContext,
 } from '../selectors';
-import {type IBotConfigs} from '../types';
+import {type IBotConfigs, type IBotConfigsSource, type IWorkflowArtifact} from '../types';
 import {
     checkContainsHiddenLabel,
     findNewScreenshotImages,
@@ -114,7 +114,9 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      *
      * GitHub App must have the **actions:read** permission to use these endpoints.
      */
-    public async getWorkflowArtifacts<F>(workflowRunId: number): Promise<F[]> {
+    public async getWorkflowArtifacts<F>(
+        workflowRunId: number,
+    ): Promise<Array<IWorkflowArtifact<F>>> {
         const workflowRunInfo = this.context.repo({run_id: workflowRunId});
 
         const artifactsInfo = await this.context.octokit.actions
@@ -123,23 +125,21 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 
         const artifacts = artifactsInfo?.data.artifacts ?? [];
 
-        if (artifacts.length) {
-            const artifactsMetas = artifacts.map(({id}) =>
-                this.context.repo({artifact_id: id, archive_format: 'zip'}),
-            );
-
-            // https://github.com/probot/probot/issues/1680
-            // @ts-ignore TS2590: Expression produces a union type that is too complex to represent.
-            const artifactsRequests = artifactsMetas.map(async (meta): Promise<F> =>
+        return Promise.all(
+            artifacts.map(async ({id, name, size_in_bytes: sizeInBytes, expired}) =>
                 this.context.octokit.actions
-                    .downloadArtifact(meta)
-                    .then(({data}) => data as F),
-            );
-
-            return Promise.all(artifactsRequests);
-        }
-
-        return [];
+                    .downloadArtifact(
+                        this.context.repo({artifact_id: id, archive_format: 'zip'}),
+                    )
+                    .then(({data}) => ({
+                        id,
+                        name,
+                        sizeInBytes,
+                        expired,
+                        data: data as F,
+                    })),
+            ),
+        );
     }
 
     /**
@@ -246,12 +246,12 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         files: ReadonlyArray<{path: string; content: Buffer}>;
         commitMessage: string;
         branch: string;
-    }): Promise<string[]> {
+    }): Promise<{commitSha: string; urls: string[]}> {
         if (!files.length) {
-            return [];
+            return {commitSha: '', urls: []};
         }
 
-        await this.createCommit({
+        const commitSha = await this.createCommit({
             files,
             branch,
             commitMessage,
@@ -259,9 +259,12 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 
         const {repo, owner} = this.context.repo();
 
-        return files.map(
-            ({path}) => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`,
-        );
+        return {
+            commitSha,
+            urls: files.map(
+                ({path}) => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`,
+            ),
+        };
     }
 
     /**
@@ -275,16 +278,14 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         paths: string[];
         commitMessage: string;
         branch: string;
-    }): Promise<void> {
-        if (!paths.length) {
-            return;
-        }
-
-        await this.createCommit({
-            files: paths.map((path) => ({path, content: null})),
-            branch,
-            commitMessage,
-        });
+    }): Promise<string | null> {
+        return paths.length
+            ? this.createCommit({
+                  files: paths.map((path) => ({path, content: null})),
+                  branch,
+                  commitMessage,
+              })
+            : null;
     }
 
     /**
@@ -319,7 +320,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         files: ReadonlyArray<{path: string; content: Buffer | null}>;
         commitMessage: string;
         branch: string;
-    }): Promise<void> {
+    }): Promise<string> {
         if (!files.length) {
             throw new Error('[createCommit] Empty array is forbidden');
         }
@@ -374,6 +375,8 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
             ref: storageBranchRef,
             sha: commitSha,
         });
+
+        return commitSha;
     }
 
     private async createBlob(
@@ -391,6 +394,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 
 export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: Required<IBotConfigs> | null = null;
+    private botConfigsSource: IBotConfigsSource | null = null;
 
     public async loadBotConfigs(branch: string): Promise<Required<IBotConfigs>> {
         const repoInfo = this.context.repo();
@@ -400,22 +404,40 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
 
         const owner = headRepo?.owner.login ?? repoInfo.owner;
         const repo = headRepo?.name ?? repoInfo.repo;
+        const path = `.github/${BOT_CONFIGS_FILE_NAME}`;
 
         return this.context.octokit.config
             .get({
                 owner,
                 repo,
                 branch,
-                path: `.github/${BOT_CONFIGS_FILE_NAME}`,
+                path,
                 defaults: DEFAULT_BOT_CONFIGS,
             })
-            .then(({config}) => config);
+            .then(({config, files}) => {
+                this.botConfigsSource = {
+                    owner,
+                    repo,
+                    path,
+                    found: files.some((file) => file.config !== null),
+                };
+
+                return config;
+            });
     }
 
     public async getBotConfigs(
         branch: string = DEFAULT_MAIN_BRANCH,
     ): Promise<Required<IBotConfigs>> {
-        return this.botConfigs || this.loadBotConfigs(branch);
+        if (!this.botConfigs) {
+            this.botConfigs = await this.loadBotConfigs(branch);
+        }
+
+        return this.botConfigs;
+    }
+
+    public getBotConfigsSource(): IBotConfigsSource | null {
+        return this.botConfigsSource;
     }
 
     public async getPrevBotReportComment(prNumber: number): Promise<IssueComment | null> {
@@ -496,7 +518,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         images: Buffer[],
         prNumber: number,
         workflowRunId: number,
-    ): Promise<string[]> {
+    ): Promise<{commitSha: string; urls: string[]}> {
         await this.createBranch(STORAGE_BRANCH);
 
         const files = images.map((content, i) => ({
@@ -511,10 +533,13 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         });
     }
 
+    /**
+     * @returns `null` when the workflow should be processed, or a human-readable skip reason otherwise.
+     */
     public async checkShouldSkipWorkflow(
         workflowName: string,
         workflowBranch: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
@@ -526,16 +551,22 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                     new RegExp(regExp, 'gi').test(workflowName),
                 ));
 
+        if (!hasTests) {
+            return `workflow "${workflowName}" does not match configured "workflows" patterns`;
+        }
+
         const branchIgnored =
             !!workflowBranch &&
             this.botConfigs['branches-ignore'].some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowBranch),
             );
 
-        return !hasTests || branchIgnored;
+        return branchIgnored
+            ? `branch "${workflowBranch}" matches configured "branches-ignore" patterns`
+            : null;
     }
 
-    public async deleteUploadedImagesFolder(prNumber: number): Promise<void> {
+    public async deleteUploadedImagesFolder(prNumber: number): Promise<string | null> {
         const folder = await this.getFile(this.getSavedImagePathPrefix(prNumber), {
             branch: STORAGE_BRANCH,
         });
