@@ -61,6 +61,10 @@ export function renderFilesTree(
     const lines: string[] = [];
     const state = {printedFiles: 0, stopped: false};
 
+    if (maxEntries <= 0) {
+        return totalFiles ? `… ${totalFiles} more files (output truncated)` : '';
+    }
+
     function walk(
         node: IFilesTreeNode,
         prefix: string,

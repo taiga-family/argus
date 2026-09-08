@@ -208476,6 +208476,9 @@ function renderFilesTree(root, { maxEntries = Infinity } = {}) {
     const totalFiles = countFiles(root);
     const lines = [];
     const state = { printedFiles: 0, stopped: false };
+    if (maxEntries <= 0) {
+        return totalFiles ? `… ${totalFiles} more files (output truncated)` : '';
+    }
     function walk(node, prefix, isLast, isRoot) {
         if (state.stopped) {
             return;
@@ -212158,10 +212161,8 @@ class Bot {
      */
     async getWorkflowArtifacts(workflowRunId) {
         const workflowRunInfo = this.context.repo({ run_id: workflowRunId });
-        const artifactsInfo = await this.context.octokit.actions
-            .listWorkflowRunArtifacts(workflowRunInfo)
-            .catch(() => null);
-        const artifacts = artifactsInfo?.data.artifacts ?? [];
+        const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
+        const artifacts = artifactsInfo.data.artifacts;
         return Promise.all(artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes, expired }) => this.context.octokit.actions
             .downloadArtifact(this.context.repo({ artifact_id: id, archive_format: 'zip' }))
             .then(({ data }) => ({
@@ -212416,11 +212417,11 @@ class ScreenshotBot extends Bot {
         const filterFn = (zipFile) => findScreenshotDiffImages(zipFile, this.botConfigs?.['diff-paths']);
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
-    async uploadImages(images, prNumber, workflowRunId) {
+    async uploadImages(images, prNumber, workflowRunId, imageOffset) {
         await this.createBranch(STORAGE_BRANCH);
         const files = images.map((content, i) => ({
             content,
-            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i}.png`,
+            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i + (imageOffset ?? 0)}.png`,
         }));
         return this.uploadFiles({
             files,
@@ -212495,6 +212496,7 @@ const RepositoryEvent = {
     PRClosed: 'pull_request.closed',
 };
 const getRunMode = () => process.env.GITHUB_ACTIONS ? 'GitHub Action' : 'GitHub App';
+const getContextIdLabel = () => process.env.GITHUB_ACTIONS ? 'Action run id' : 'Delivery id';
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
         const startedAt = Date.now();
@@ -212506,16 +212508,17 @@ const EVENTS_CALLBACKS = {
         const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
         const headRepo = getWorkflowHeadRepo(context);
+        const headRepoRef = { owner: headRepo.owner.login, repo: headRepo.name };
         const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
         log.group(LogSection.Context, () => log.keyValue([
-            ['Event', context.name],
-            ['Delivery id', context.id],
+            ['Event', RepositoryEvent.WorkflowRunCompleted],
+            [getContextIdLabel(), context.id],
             ['Repository', `${repo.owner}/${repo.repo}`],
             [
                 'Commit',
                 commitSha
-                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(repo, commitSha)}`
+                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
                     : '(unknown)',
             ],
             [
@@ -212572,21 +212575,26 @@ const EVENTS_CALLBACKS = {
             log.warn('Argus: no workflow artifacts found');
         }
         log.group(`${LogSection.Artifacts} (${artifacts.length})`, () => log.list(artifacts.map((artifact, i) => `${i + 1}. ${artifact.name}   ${formatBytes(artifact.sizeInBytes)}   id ${artifact.id}`)));
+        let loggedTreeEntries = 0;
         log.group(LogSection.FilesInsideArtifacts, () => {
             artifacts.forEach((artifact) => {
                 const entries = getFilesFromZipFile(artifact.data);
+                const maxEntries = coreExports.isDebug()
+                    ? Infinity
+                    : Math.max(0, LOG_MAX_TREE_ENTRIES - loggedTreeEntries);
                 log.info(`${artifact.name} (${entries.length} files)`);
                 log.info(renderFilesTree(buildFilesTree(entries.map((entry) => ({
                     path: entry.entryName,
                     size: entry.header.size,
-                }))), { maxEntries: coreExports.isDebug() ? Infinity : LOG_MAX_TREE_ENTRIES }));
+                }))), { maxEntries }));
+                loggedTreeEntries += Math.min(entries.length, maxEntries);
             });
         });
         const artifactsData = artifacts.map((artifact) => artifact.data);
         const failedTestsImages = await bot.getScreenshotDiffImages(artifactsData, workflowBranch);
         const { commitSha: diffsCommitSha, urls: failedTestsImagesUrls } = await bot.uploadImages(failedTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
         const newTestsImages = await bot.getNewScreenshotImages(artifactsData, workflowBranch);
-        const { commitSha: newCommitSha, urls: newTestsImagesUrls } = await bot.uploadImages(newTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
+        const { commitSha: newCommitSha, urls: newTestsImagesUrls } = await bot.uploadImages(newTestsImages.map((image) => image.getData()), prNumber, workflowRunId, failedTestsImages.length);
         log.group(`${LogSection.ScreenshotDiffs} (${failedTestsImages.length})`, () => log.list(zip(failedTestsImages, failedTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
         log.group(`${LogSection.NewScreenshots} (${newTestsImages.length})`, () => log.list(zip(newTestsImages, newTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
         if (!failedTestsImages.length && !newTestsImages.length) {
@@ -212613,8 +212621,8 @@ const EVENTS_CALLBACKS = {
         const workflowBranch = getWorkflowBranch(context);
         const workflowRunId = getWorkflowRunId(context);
         log.group(LogSection.Context, () => log.keyValue([
-            ['Event', context.name],
-            ['Delivery id', context.id],
+            ['Event', RepositoryEvent.WorkflowRunRequested],
+            [getContextIdLabel(), context.id],
             ['Repository', `${repo.owner}/${repo.repo}`],
             [
                 'Workflow',
@@ -212644,8 +212652,8 @@ const EVENTS_CALLBACKS = {
         const repo = context.repo();
         const prNumber = context.payload.number;
         log.group(LogSection.Context, () => log.keyValue([
-            ['Event', context.name],
-            ['Delivery id', context.id],
+            ['Event', RepositoryEvent.PRClosed],
+            [getContextIdLabel(), context.id],
             ['Repository', `${repo.owner}/${repo.repo}`],
             ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
             ['Run mode', getRunMode()],

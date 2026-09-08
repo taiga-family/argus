@@ -45,6 +45,9 @@ const RepositoryEvent = {
 const getRunMode = (): string =>
     process.env.GITHUB_ACTIONS ? 'GitHub Action' : 'GitHub App';
 
+const getContextIdLabel = (): string =>
+    process.env.GITHUB_ACTIONS ? 'Action run id' : 'Delivery id';
+
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
         context: Context<'workflow_run.completed'>,
@@ -58,18 +61,19 @@ const EVENTS_CALLBACKS = {
         const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
         const headRepo = getWorkflowHeadRepo(context);
+        const headRepoRef = {owner: headRepo.owner.login, repo: headRepo.name};
         const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
 
         log.group(LogSection.Context, () =>
             log.keyValue([
-                ['Event', context.name],
-                ['Delivery id', context.id],
+                ['Event', RepositoryEvent.WorkflowRunCompleted],
+                [getContextIdLabel(), context.id],
                 ['Repository', `${repo.owner}/${repo.repo}`],
                 [
                     'Commit',
                     commitSha
-                        ? `${commitSha.slice(0, 7)}  ${getCommitUrl(repo, commitSha)}`
+                        ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
                         : '(unknown)',
                 ],
                 [
@@ -162,9 +166,14 @@ const EVENTS_CALLBACKS = {
             ),
         );
 
+        let loggedTreeEntries = 0;
+
         log.group(LogSection.FilesInsideArtifacts, () => {
             artifacts.forEach((artifact) => {
                 const entries = getFilesFromZipFile(artifact.data);
+                const maxEntries = core.isDebug()
+                    ? Infinity
+                    : Math.max(0, LOG_MAX_TREE_ENTRIES - loggedTreeEntries);
 
                 log.info(`${artifact.name} (${entries.length} files)`);
                 log.info(
@@ -175,9 +184,10 @@ const EVENTS_CALLBACKS = {
                                 size: entry.header.size,
                             })),
                         ),
-                        {maxEntries: core.isDebug() ? Infinity : LOG_MAX_TREE_ENTRIES},
+                        {maxEntries},
                     ),
                 );
+                loggedTreeEntries += Math.min(entries.length, maxEntries);
             });
         });
 
@@ -205,6 +215,7 @@ const EVENTS_CALLBACKS = {
                 newTestsImages.map((image) => image.getData()),
                 prNumber,
                 workflowRunId,
+                failedTestsImages.length,
             );
 
         log.group(`${LogSection.ScreenshotDiffs} (${failedTestsImages.length})`, () =>
@@ -270,8 +281,8 @@ const EVENTS_CALLBACKS = {
 
         log.group(LogSection.Context, () =>
             log.keyValue([
-                ['Event', context.name],
-                ['Delivery id', context.id],
+                ['Event', RepositoryEvent.WorkflowRunRequested],
+                [getContextIdLabel(), context.id],
                 ['Repository', `${repo.owner}/${repo.repo}`],
                 [
                     'Workflow',
@@ -316,8 +327,8 @@ const EVENTS_CALLBACKS = {
 
         log.group(LogSection.Context, () =>
             log.keyValue([
-                ['Event', context.name],
-                ['Delivery id', context.id],
+                ['Event', RepositoryEvent.PRClosed],
+                [getContextIdLabel(), context.id],
                 ['Repository', `${repo.owner}/${repo.repo}`],
                 ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
                 ['Run mode', getRunMode()],

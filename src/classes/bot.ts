@@ -119,11 +119,10 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
     ): Promise<Array<IWorkflowArtifact<F>>> {
         const workflowRunInfo = this.context.repo({run_id: workflowRunId});
 
-        const artifactsInfo = await this.context.octokit.actions
-            .listWorkflowRunArtifacts(workflowRunInfo)
-            .catch(() => null);
+        const artifactsInfo =
+            await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
 
-        const artifacts = artifactsInfo?.data.artifacts ?? [];
+        const artifacts = artifactsInfo.data.artifacts;
 
         return Promise.all(
             artifacts.map(async ({id, name, size_in_bytes: sizeInBytes, expired}) =>
@@ -518,12 +517,15 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         images: Buffer[],
         prNumber: number,
         workflowRunId: number,
+        imageOffset?: number,
     ): Promise<{commitSha: string; urls: string[]}> {
         await this.createBranch(STORAGE_BRANCH);
 
         const files = images.map((content, i) => ({
             content,
-            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i}.png`,
+            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${
+                i + (imageOffset ?? 0)
+            }.png`,
         }));
 
         return this.uploadFiles({
