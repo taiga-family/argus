@@ -208392,12 +208392,12 @@ const GithubFileMode = {
 
 const LOG_MAX_TREE_ENTRIES = 200;
 const LogSection = {
-    Context: 'Argus · context',
-    BotConfigs: 'Argus · bot configurations',
-    Artifacts: 'Argus · artifacts',
-    FilesInsideArtifacts: 'Argus · files inside artifacts',
-    ScreenshotDiffs: 'Argus · screenshot diffs',
-    NewScreenshots: 'Argus · new screenshots',
+    Context: '[ARGUS] context',
+    BotConfigs: '[ARGUS] bot configurations',
+    Artifacts: '[ARGUS] artifacts',
+    FilesInsideArtifacts: '[ARGUS] files inside artifacts',
+    ScreenshotDiffs: '[ARGUS] screenshot diffs',
+    NewScreenshots: '[ARGUS] new screenshots',
 };
 
 const getPrUrl = ({ owner, repo }, prNumber) => `${GITHUB_DOMAIN}/${owner}/${repo}/pull/${prNumber}`;
