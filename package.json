@@ -38,7 +38,7 @@
         "@types/adm-zip": "0.5.8",
         "@types/node": "22.20.1",
         "concurrently": "9.2.4",
-        "rollup": "4.63.0",
+        "rollup": "4.63.1",
         "smee-client": "2.0.4",
         "typescript": "5.9.3",
         "wait-on": "8.0.5"
