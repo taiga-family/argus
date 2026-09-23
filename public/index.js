@@ -113206,7 +113206,7 @@ function requireGetProbotOctokitWithDefaults () {
 
 var getWebhooks = {};
 
-const createLogger$1 = (logger = {}) => {
+const createLogger$2 = (logger = {}) => {
   if (typeof logger.debug !== "function") {
     logger.debug = () => {
     };
@@ -113777,7 +113777,7 @@ function removeListener(state, webhookNameOrNames, handler) {
 function createEventHandler(options) {
   const state = {
     hooks: {},
-    log: createLogger$1(options && options.log)
+    log: createLogger$2(options && options.log)
   };
   if (options && options.transform) {
     state.transform = options.transform;
@@ -114011,7 +114011,7 @@ async function middleware(webhooks, options, request, response, next) {
 
 function createNodeMiddleware$1(webhooks, {
   path = "/api/github/webhooks",
-  log = createLogger$1()
+  log = createLogger$2()
 } = {}) {
   return middleware.bind(null, webhooks, {
     path,
@@ -114028,7 +114028,7 @@ class Webhooks {
       eventHandler: createEventHandler(options),
       secret: options.secret,
       hooks: {},
-      log: createLogger$1(options.log)
+      log: createLogger$2(options.log)
     };
     this.sign = sign$1.bind(null, options.secret);
     this.verify = verify.bind(null, options.secret);
@@ -114499,7 +114499,7 @@ var noop$1 = () => {
 };
 var consoleWarn = console.warn.bind(console);
 var consoleError = console.error.bind(console);
-function createLogger(logger = {}) {
+function createLogger$1(logger = {}) {
   if (typeof logger.debug !== "function") {
     logger.debug = noop$1;
   }
@@ -114587,7 +114587,7 @@ var Octokit = class {
     }
     this.request = request$3.defaults(requestDefaults);
     this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
-    this.log = createLogger(options.log);
+    this.log = createLogger$1(options.log);
     this.hook = hook;
     if (!options.authStrategy) {
       if (!options.auth) {
@@ -208385,9 +208385,25 @@ const IMAGES_STORAGE_FOLDER = '__bot-screenshots';
 const TEST_REPORT_HIDDEN_LABEL = 'test-report';
 
 const DEFAULT_MAIN_BRANCH = 'main';
+const GITHUB_DOMAIN = 'https://github.com';
 
 const GithubFileMode = {
     Blob: '100644'};
+
+const LOG_MAX_TREE_ENTRIES = 200;
+const LogSection = {
+    Context: '[ARGUS] context',
+    BotConfigs: '[ARGUS] bot configurations',
+    Artifacts: '[ARGUS] artifacts',
+    FilesInsideArtifacts: '[ARGUS] files inside artifacts',
+    ScreenshotDiffs: '[ARGUS] screenshot diffs',
+    NewScreenshots: '[ARGUS] new screenshots',
+};
+
+const getPrUrl = ({ owner, repo }, prNumber) => `${GITHUB_DOMAIN}/${owner}/${repo}/pull/${prNumber}`;
+const getCommitUrl = ({ owner, repo }, commitSha) => `${GITHUB_DOMAIN}/${owner}/${repo}/commit/${commitSha}`;
+const getWorkflowRunUrl = ({ owner, repo }, workflowRunId) => `${GITHUB_DOMAIN}/${owner}/${repo}/actions/runs/${workflowRunId}`;
+const getBranchUrl = ({ owner, repo }, branch) => `${GITHUB_DOMAIN}/${owner}/${repo}/tree/${branch}`;
 
 const getWorkflowName = (context) => context.payload.workflow.name || '';
 const getWorkflowBranch = (context) => context.payload.workflow_run.head_branch || '';
@@ -208410,6 +208426,138 @@ function checkContainsHiddenLabel(markdownText, label) {
 }
 
 const zip = (a, b) => a.map((item, i) => [item, b[i]]);
+
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
+function formatBytes(bytes) {
+    if (bytes === 0) {
+        return '0 B';
+    }
+    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), BYTE_UNITS.length - 1);
+    const value = bytes / 1024 ** exponent;
+    return `${exponent === 0 ? value : value.toFixed(1)} ${BYTE_UNITS[exponent]}`;
+}
+function formatDuration(ms) {
+    return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+function formatKeyValue(rows) {
+    const keyWidth = Math.max(0, ...rows.map(([key]) => key.length));
+    return rows.map(([key, value]) => `${key.padEnd(keyWidth)}  ${value}`).join('\n');
+}
+
+function buildFilesTree(entries) {
+    const root = { name: '', isFile: false, children: [] };
+    for (const entry of entries) {
+        const parts = entry.path.split('/').filter(Boolean);
+        let node = root;
+        parts.forEach((part, index) => {
+            let child = node.children.find((c) => c.name === part);
+            if (!child) {
+                child = { name: part, isFile: false, children: [] };
+                node.children.push(child);
+            }
+            if (index === parts.length - 1) {
+                child.isFile = true;
+                child.size = entry.size;
+            }
+            node = child;
+        });
+    }
+    return root;
+}
+function countFiles(node) {
+    return node.isFile
+        ? 1
+        : node.children.reduce((sum, child) => sum + countFiles(child), 0);
+}
+function sortChildren(children) {
+    return [...children].sort((a, b) => a.name.localeCompare(b.name));
+}
+function renderFilesTree(root, { maxEntries = Infinity } = {}) {
+    const totalFiles = countFiles(root);
+    const lines = [];
+    const state = { printedFiles: 0, stopped: false };
+    if (maxEntries <= 0) {
+        return totalFiles ? `… ${totalFiles} more files (output truncated)` : '';
+    }
+    function walk(node, prefix, isLast, isRoot) {
+        if (state.stopped) {
+            return;
+        }
+        if (!isRoot) {
+            const connector = isLast ? '└─ ' : '├─ ';
+            const label = node.isFile && node.size !== undefined
+                ? `${node.name}  ${formatBytes(node.size)}`
+                : node.name;
+            lines.push(`${prefix}${connector}${label}`);
+            if (node.isFile) {
+                state.printedFiles += 1;
+                if (state.printedFiles >= maxEntries && totalFiles > maxEntries) {
+                    state.stopped = true;
+                    return;
+                }
+            }
+        }
+        const childPrefix = isRoot ? prefix : `${prefix}${isLast ? '   ' : '│  '}`;
+        sortChildren(node.children).forEach((child, index, all) => {
+            walk(child, childPrefix, index === all.length - 1, false);
+        });
+    }
+    walk(root, '', true, true);
+    if (state.stopped) {
+        lines.push(`… ${totalFiles - state.printedFiles} more files (output truncated)`);
+    }
+    return lines.join('\n');
+}
+
+function createLogger(log) {
+    const isAction = !!process.env.GITHUB_ACTIONS;
+    const info = (message) => {
+        if (isAction) {
+            coreExports.info(message);
+        }
+        else {
+            log.info(message);
+        }
+    };
+    const notice = (message) => {
+        if (isAction) {
+            coreExports.notice(message);
+        }
+        else {
+            log.info(message);
+        }
+    };
+    const warn = (message) => {
+        if (isAction) {
+            coreExports.warning(message);
+        }
+        else {
+            log.warn(message);
+        }
+    };
+    // GitHub does not support nested `::group::` sections, so callers must not nest `group()` calls.
+    const group = (title, render) => {
+        if (!isAction) {
+            info(`— ${title} —`);
+            render();
+            return;
+        }
+        coreExports.startGroup(title);
+        try {
+            render();
+        }
+        finally {
+            coreExports.endGroup();
+        }
+    };
+    const keyValue = (rows) => {
+        info(formatKeyValue(rows));
+    };
+    const list = (items) => {
+        items.forEach(info);
+    };
+    return { group, info, notice, warn, keyValue, list };
+}
 
 const createCollapsibleScreenshot = ([{ entryName }, link], initialOpen = true, imageAttrs = []) => `
 <details ${initialOpen ? 'open' : ''}>
@@ -212013,20 +212161,17 @@ class Bot {
      */
     async getWorkflowArtifacts(workflowRunId) {
         const workflowRunInfo = this.context.repo({ run_id: workflowRunId });
-        const artifactsInfo = await this.context.octokit.actions
-            .listWorkflowRunArtifacts(workflowRunInfo)
-            .catch(() => null);
-        const artifacts = artifactsInfo?.data.artifacts ?? [];
-        if (artifacts.length) {
-            const artifactsMetas = artifacts.map(({ id }) => this.context.repo({ artifact_id: id, archive_format: 'zip' }));
-            // https://github.com/probot/probot/issues/1680
-            // @ts-ignore TS2590: Expression produces a union type that is too complex to represent.
-            const artifactsRequests = artifactsMetas.map(async (meta) => this.context.octokit.actions
-                .downloadArtifact(meta)
-                .then(({ data }) => data));
-            return Promise.all(artifactsRequests);
-        }
-        return [];
+        const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
+        const artifacts = artifactsInfo.data.artifacts;
+        return Promise.all(artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes, expired }) => this.context.octokit.actions
+            .downloadArtifact(this.context.repo({ artifact_id: id, archive_format: 'zip' }))
+            .then(({ data }) => ({
+            id,
+            name,
+            sizeInBytes,
+            expired,
+            data: data,
+        }))));
     }
     /**
      * Get file (+ meta info about it) by its path in the repository.
@@ -212097,28 +212242,30 @@ class Bot {
      */
     async uploadFiles({ files, branch, commitMessage, }) {
         if (!files.length) {
-            return [];
+            return { commitSha: '', urls: [] };
         }
-        await this.createCommit({
+        const commitSha = await this.createCommit({
             files,
             branch,
             commitMessage,
         });
         const { repo, owner } = this.context.repo();
-        return files.map(({ path }) => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`);
+        return {
+            commitSha,
+            urls: files.map(({ path }) => `${GITHUB_CDN_DOMAIN}/${owner}/${repo}/${branch}/${path}`),
+        };
     }
     /**
      * Delete files in the following branch.
      */
     async deleteFiles({ paths, commitMessage, branch, }) {
-        if (!paths.length) {
-            return;
-        }
-        await this.createCommit({
-            files: paths.map((path) => ({ path, content: null })),
-            branch,
-            commitMessage,
-        });
+        return paths.length
+            ? this.createCommit({
+                files: paths.map((path) => ({ path, content: null })),
+                branch,
+                commitMessage,
+            })
+            : null;
     }
     /**
      * List pull requests.
@@ -212187,6 +212334,7 @@ class Bot {
             ref: storageBranchRef,
             sha: commitSha,
         });
+        return commitSha;
     }
     async createBlob(fileContent) {
         return this.context.octokit.git
@@ -212200,6 +212348,7 @@ class Bot {
 }
 class ScreenshotBot extends Bot {
     botConfigs = null;
+    botConfigsSource = null;
     async loadBotConfigs(branch) {
         const repoInfo = this.context.repo();
         const headRepo = isWorkflowContext(this.context)
@@ -212207,18 +212356,33 @@ class ScreenshotBot extends Bot {
             : null;
         const owner = headRepo?.owner.login ?? repoInfo.owner;
         const repo = headRepo?.name ?? repoInfo.repo;
+        const path = `.github/${BOT_CONFIGS_FILE_NAME}`;
         return this.context.octokit.config
             .get({
             owner,
             repo,
             branch,
-            path: `.github/${BOT_CONFIGS_FILE_NAME}`,
+            path,
             defaults: DEFAULT_BOT_CONFIGS,
         })
-            .then(({ config }) => config);
+            .then(({ config, files }) => {
+            this.botConfigsSource = {
+                owner,
+                repo,
+                path,
+                found: files.some((file) => file.config !== null),
+            };
+            return config;
+        });
     }
     async getBotConfigs(branch = DEFAULT_MAIN_BRANCH) {
-        return this.botConfigs || this.loadBotConfigs(branch);
+        if (!this.botConfigs) {
+            this.botConfigs = await this.loadBotConfigs(branch);
+        }
+        return this.botConfigs;
+    }
+    getBotConfigsSource() {
+        return this.botConfigsSource;
     }
     async getPrevBotReportComment(prNumber) {
         const prComments = await this.getCommentsByIssueId(prNumber);
@@ -212253,11 +212417,11 @@ class ScreenshotBot extends Bot {
         const filterFn = (zipFile) => findScreenshotDiffImages(zipFile, this.botConfigs?.['diff-paths']);
         return this.getImagesByFn(zipFiles, filterFn, branch);
     }
-    async uploadImages(images, prNumber, workflowRunId) {
+    async uploadImages(images, prNumber, workflowRunId, imageOffset) {
         await this.createBranch(STORAGE_BRANCH);
         const files = images.map((content, i) => ({
             content,
-            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i}.png`,
+            path: `${this.getSavedImagePathPrefix(prNumber)}/${workflowRunId}-${i + (imageOffset ?? 0)}.png`,
         }));
         return this.uploadFiles({
             files,
@@ -212265,6 +212429,9 @@ class ScreenshotBot extends Bot {
             commitMessage: `ci(screenshot-bot): Upload | {pr: ${prNumber}, workflow: ${workflowRunId}}`,
         });
     }
+    /**
+     * @returns `null` when the workflow should be processed, or a human-readable skip reason otherwise.
+     */
     async checkShouldSkipWorkflow(workflowName, workflowBranch) {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
@@ -212272,9 +212439,14 @@ class ScreenshotBot extends Bot {
         const hasTests = process.env.GITHUB_ACTIONS ||
             (workflowName &&
                 this.botConfigs.workflows.some((regExp) => new RegExp(regExp, 'gi').test(workflowName)));
+        if (!hasTests) {
+            return `workflow "${workflowName}" does not match configured "workflows" patterns`;
+        }
         const branchIgnored = !!workflowBranch &&
             this.botConfigs['branches-ignore'].some((regExp) => new RegExp(regExp, 'gi').test(workflowBranch));
-        return !hasTests || branchIgnored;
+        return branchIgnored
+            ? `branch "${workflowBranch}" matches configured "branches-ignore" patterns`
+            : null;
     }
     async deleteUploadedImagesFolder(prNumber) {
         const folder = await this.getFile(this.getSavedImagePathPrefix(prNumber), {
@@ -212323,58 +212495,183 @@ const RepositoryEvent = {
     WorkflowRunRequested: 'workflow_run.requested',
     PRClosed: 'pull_request.closed',
 };
+const getRunMode = () => process.env.GITHUB_ACTIONS ? 'GitHub Action' : 'GitHub App';
+const getContextIdLabel = () => process.env.GITHUB_ACTIONS ? 'Action run id' : 'Delivery id';
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
+        const startedAt = Date.now();
+        const log = createLogger(context.log);
         const bot = new ScreenshotBot(context);
+        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
+        const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
-        const [prNumber, shouldSkipWorkflow] = await Promise.all([
+        const headRepo = getWorkflowHeadRepo(context);
+        const headRepoRef = { owner: headRepo.owner.login, repo: headRepo.name };
+        const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
+        const conclusion = getWorkflowRunConclusion(context);
+        log.group(LogSection.Context, () => log.keyValue([
+            ['Event', RepositoryEvent.WorkflowRunCompleted],
+            [getContextIdLabel(), context.id],
+            ['Repository', `${repo.owner}/${repo.repo}`],
+            [
+                'Commit',
+                commitSha
+                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
+                    : '(unknown)',
+            ],
+            [
+                'Workflow',
+                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
+            ],
+            ['Head branch', workflowBranch || '(unknown)'],
+            [
+                'Head repo',
+                `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
+            ],
+            ['Conclusion', conclusion],
+            ['Run mode', getRunMode()],
+        ]));
+        const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
-        if (!prNumber || shouldSkipWorkflow) {
-            return;
+        if (prNumber && getWorkflowPrNumbers(context).length === 0) {
+            log.notice(`Argus: PR #${prNumber} resolved via fallback search by head SHA (fork contribution)`);
         }
-        if (getWorkflowRunConclusion(context) === 'success') {
-            return bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
+        if (!prNumber) {
+            return log.notice('Argus: pull request not found for this workflow run — nothing to do');
         }
-        const workflowRunId = getWorkflowRunId(context);
+        if (skipReason) {
+            return log.notice(`Argus: skipped — ${skipReason}`);
+        }
+        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
+        if (conclusion === 'success') {
+            const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
+            log.info(`Report comment  ${comment.data.html_url}`);
+            log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
+            return comment;
+        }
         if (!workflowRunId) {
-            return;
+            return log.notice('Argus: workflow run id is missing — nothing to do');
         }
+        const botConfigs = await bot.getBotConfigs(workflowBranch);
+        const configSource = bot.getBotConfigsSource();
+        log.group(LogSection.BotConfigs, () => log.keyValue([
+            [
+                'Source',
+                configSource
+                    ? `${configSource.path} @ ${configSource.owner}/${configSource.repo} (${configSource.found ? 'found' : 'defaults'})`
+                    : '(unknown)',
+            ],
+            ...Object.entries(botConfigs).map(([key, value]) => [
+                key,
+                JSON.stringify(value),
+            ]),
+        ]));
         const artifacts = await bot.getWorkflowArtifacts(workflowRunId);
-        const failedTestsImages = await bot.getScreenshotDiffImages(artifacts, workflowBranch);
-        const failedTestsImagesUrls = await bot.uploadImages(failedTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
-        const newTestsImages = await bot.getNewScreenshotImages(artifacts, workflowBranch);
-        const newTestsImagesUrls = await bot.uploadImages(newTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
-        const botConfigs = await bot.getBotConfigs();
+        if (!artifacts.length) {
+            log.warn('Argus: no workflow artifacts found');
+        }
+        log.group(`${LogSection.Artifacts} (${artifacts.length})`, () => log.list(artifacts.map((artifact, i) => `${i + 1}. ${artifact.name}   ${formatBytes(artifact.sizeInBytes)}   id ${artifact.id}`)));
+        let loggedTreeEntries = 0;
+        log.group(LogSection.FilesInsideArtifacts, () => {
+            artifacts.forEach((artifact) => {
+                const entries = getFilesFromZipFile(artifact.data);
+                const maxEntries = coreExports.isDebug()
+                    ? Infinity
+                    : Math.max(0, LOG_MAX_TREE_ENTRIES - loggedTreeEntries);
+                log.info(`${artifact.name} (${entries.length} files)`);
+                log.info(renderFilesTree(buildFilesTree(entries.map((entry) => ({
+                    path: entry.entryName,
+                    size: entry.header.size,
+                }))), { maxEntries }));
+                loggedTreeEntries += Math.min(entries.length, maxEntries);
+            });
+        });
+        const artifactsData = artifacts.map((artifact) => artifact.data);
+        const failedTestsImages = await bot.getScreenshotDiffImages(artifactsData, workflowBranch);
+        const { commitSha: diffsCommitSha, urls: failedTestsImagesUrls } = await bot.uploadImages(failedTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
+        const newTestsImages = await bot.getNewScreenshotImages(artifactsData, workflowBranch);
+        const { commitSha: newCommitSha, urls: newTestsImagesUrls } = await bot.uploadImages(newTestsImages.map((image) => image.getData()), prNumber, workflowRunId, failedTestsImages.length);
+        log.group(`${LogSection.ScreenshotDiffs} (${failedTestsImages.length})`, () => log.list(zip(failedTestsImages, failedTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
+        log.group(`${LogSection.NewScreenshots} (${newTestsImages.length})`, () => log.list(zip(newTestsImages, newTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
+        if (!failedTestsImages.length && !newTestsImages.length) {
+            log.warn('Argus: no screenshot diff/new images matched the configured patterns');
+        }
+        const uploadedCommitSha = newCommitSha || diffsCommitSha;
+        if (uploadedCommitSha) {
+            log.info(`Uploaded ${failedTestsImages.length + newTestsImages.length} image(s) to branch "${STORAGE_BRANCH}"  ${getBranchUrl(repo, STORAGE_BRANCH)}`);
+            log.info(`Storage commit  ${uploadedCommitSha}  ${getCommitUrl(repo, uploadedCommitSha)}`);
+        }
         const reportText = failedTestsImages.length || newTestsImages.length
             ? getFailureReport(zip(failedTestsImages, failedTestsImagesUrls), zip(newTestsImages, newTestsImagesUrls), { commitSha, botConfigs })
             : BotReportMessage.FailedWorkflowNoScreenshots;
-        return bot.createOrUpdateReport(prNumber, reportText);
+        const comment = await bot.createOrUpdateReport(prNumber, reportText);
+        log.info(`Report comment  ${comment.data.html_url}`);
+        log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
+        return comment;
     },
     [RepositoryEvent.WorkflowRunRequested]: async (context) => {
+        const log = createLogger(context.log);
         const bot = new ScreenshotBot(context);
+        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        const [prNumber, shouldSkipWorkflow] = await Promise.all([
+        const workflowRunId = getWorkflowRunId(context);
+        log.group(LogSection.Context, () => log.keyValue([
+            ['Event', RepositoryEvent.WorkflowRunRequested],
+            [getContextIdLabel(), context.id],
+            ['Repository', `${repo.owner}/${repo.repo}`],
+            [
+                'Workflow',
+                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
+            ],
+            ['Head branch', workflowBranch || '(unknown)'],
+            ['Run mode', getRunMode()],
+        ]));
+        const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
-        if (!prNumber || shouldSkipWorkflow) {
-            return;
+        if (!prNumber) {
+            return log.notice('Argus: pull request not found for this workflow run — nothing to do');
         }
-        return bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
+        if (skipReason) {
+            return log.notice(`Argus: skipped — ${skipReason}`);
+        }
+        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
+        const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
+        log.info(`Report comment  ${comment.data.html_url}`);
+        return comment;
     },
     [RepositoryEvent.PRClosed]: async (context) => {
+        const log = createLogger(context.log);
         const bot = new ScreenshotBot(context);
+        const repo = context.repo();
         const prNumber = context.payload.number;
+        log.group(LogSection.Context, () => log.keyValue([
+            ['Event', RepositoryEvent.PRClosed],
+            [getContextIdLabel(), context.id],
+            ['Repository', `${repo.owner}/${repo.repo}`],
+            ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
+            ['Run mode', getRunMode()],
+        ]));
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
-        return (oldBotComment?.id &&
-            bot
-                .deleteUploadedImagesFolder(prNumber)
-                .then(async () => bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed)));
+        if (!oldBotComment?.id) {
+            return log.notice('Argus: no previous bot comment found for this PR — nothing to clean up');
+        }
+        const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
+        if (deletedCommitSha) {
+            log.info(`Deleted stored screenshots, commit  ${deletedCommitSha}  ${getCommitUrl(repo, deletedCommitSha)}`);
+        }
+        else {
+            log.notice('Argus: no stored screenshots found for this PR');
+        }
+        const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
+        log.info(`Report comment  ${comment.data.html_url}`);
+        return comment;
     },
 };
 var app = (app) => {
