@@ -36,7 +36,7 @@
         "@taiga-ui/eslint-plugin-experience-next": "0.562.0",
         "@taiga-ui/prettier-config": "0.562.0",
         "@types/adm-zip": "0.5.8",
-        "@types/node": "22.20.1",
+        "@types/node": "22.20.2",
         "concurrently": "9.2.4",
         "rollup": "4.63.1",
         "smee-client": "2.0.4",
