@@ -106,6 +106,28 @@ branches-ignore: []
   report. ![error-report-demo](.demo/error-report.png)
 - Removes all uploaded images (for current PR) after closing pull request. ![closed-pr-demo](.demo/pr-closed.png)
 
+## What Argus prints to the Action log :page_facing_up:
+
+When running as a **GitHub Action**, Argus prints a readable, foldable summary of what it did (and why it did nothing,
+if that's the case) to the job's stdout — no more empty console for a silent run. For every processed event you'll see:
+
+- The pull request number/link and the commit SHA that triggered the workflow run.
+- The resolved (merged) bot configuration, and whether it came from `.github/screenshot-bot.config.yml` or from the
+  defaults.
+- The artifacts found for the workflow run (name, size, id) and a file tree of their contents (capped at 200 entries —
+  re-run with `ACTIONS_STEP_DEBUG=true` for the untruncated tree).
+- The screenshot diff / new-screenshot images that were matched, and the storage-branch commit they were uploaded to.
+- An explicit reason whenever Argus exits early: no pull request found, workflow/branch filtered out by config, no
+  artifacts, etc. — instead of a silent no-op.
+
+`::warning::` annotations are raised when no artifacts or no matching screenshots are found, so they also show up in the
+run's checks tab.
+
+> **Note:** when running as a **GitHub App**, the same information is written to `context.log` instead (no
+> `::group::`/`::warning::` workflow commands, since those only make sense inside a GitHub Actions job). The underlying
+> logger defaults to `warn` level in App mode, so set `LOG_LEVEL=info` in your deployment if you want to see these logs
+> there too.
+
 ## About Permissions :closed_lock_with_key:
 
 If you use bot as GitHub Action it is required to provide `permissions` property in your `yml` file.<br> If you use bot

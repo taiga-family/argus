@@ -37,3 +37,11 @@ export interface IBotConfigs {
      */
     'failed-report-description': string;
 }
+
+export interface IBotConfigsSource {
+    owner: string;
+    repo: string;
+    path: string;
+    /** Whether the config file was found in the repository, or `DEFAULT_BOT_CONFIGS` were used instead */
+    found: boolean;
+}
