@@ -22,10 +22,7 @@ const RepositoryEvent = {
 } as const;
 
 const logEvent = (context: Context, event: string, fields: object): void =>
-    context.log.info(
-        {isGithubAction: IS_GITHUB_ACTION, ...fields},
-        `Argus: ${event}`,
-    );
+    context.log.info({isGithubAction: IS_GITHUB_ACTION, ...fields}, `Argus: ${event}`);
 
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
@@ -198,7 +195,12 @@ const EVENTS_CALLBACKS = {
 
         const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
 
-        log.info({deletedCommitSha}, 'Argus: deleted stored screenshots');
+        log.info(
+            {deletedCommitSha},
+            deletedCommitSha
+                ? 'Argus: deleted stored screenshots'
+                : 'Argus: no stored screenshots found for this PR',
+        );
 
         return bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
     },

@@ -212634,7 +212634,9 @@ const EVENTS_CALLBACKS = {
             return log.info('Argus: no previous bot comment found for this PR');
         }
         const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
-        log.info({ deletedCommitSha }, 'Argus: deleted stored screenshots');
+        log.info({ deletedCommitSha }, deletedCommitSha
+            ? 'Argus: deleted stored screenshots'
+            : 'Argus: no stored screenshots found for this PR');
         return bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
     },
 };
