@@ -212531,7 +212531,7 @@ const RepositoryEvent = {
     WorkflowRunRequested: 'workflow_run.requested',
     PRClosed: 'pull_request.closed',
 };
-const logEvent = (context, event, fields) => context.log.info({ id: context.id, isGithubAction: IS_GITHUB_ACTION, ...fields }, `Argus: ${event}`);
+const logEvent = (context, event, fields) => context.log.info({ isGithubAction: IS_GITHUB_ACTION, ...fields }, `Argus: ${event}`);
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
         const { log } = context;
@@ -212578,7 +212578,7 @@ const EVENTS_CALLBACKS = {
             const shown = files.slice(0, Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles));
             loggedFiles += shown.length;
             log.info({
-                id,
+                artifactId: id,
                 sizeInBytes,
                 files: shown,
                 truncatedFiles: files.length - shown.length,

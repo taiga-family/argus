@@ -23,7 +23,7 @@ const RepositoryEvent = {
 
 const logEvent = (context: Context, event: string, fields: object): void =>
     context.log.info(
-        {id: context.id, isGithubAction: IS_GITHUB_ACTION, ...fields},
+        {isGithubAction: IS_GITHUB_ACTION, ...fields},
         `Argus: ${event}`,
     );
 
@@ -93,7 +93,7 @@ const EVENTS_CALLBACKS = {
             loggedFiles += shown.length;
             log.info(
                 {
-                    id,
+                    artifactId: id,
                     sizeInBytes,
                     files: shown,
                     truncatedFiles: files.length - shown.length,
