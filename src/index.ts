@@ -21,6 +21,12 @@ const RepositoryEvent = {
     PRClosed: 'pull_request.closed',
 } as const;
 
+const logEvent = (context: Context, event: string, fields: object): void =>
+    context.log.info(
+        {id: context.id, isGithubAction: IS_GITHUB_ACTION, ...fields},
+        `Argus: ${event}`,
+    );
+
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
         context: Context<'workflow_run.completed'>,
@@ -33,18 +39,13 @@ const EVENTS_CALLBACKS = {
         const commitSha = getWorkflowHeadSha(context) || '';
         const conclusion = getWorkflowRunConclusion(context);
 
-        log.info(
-            {
-                id: context.id,
-                isGithubAction: IS_GITHUB_ACTION,
-                workflowName,
-                workflowRunId,
-                workflowBranch,
-                commitSha,
-                conclusion,
-            },
-            `Argus: ${RepositoryEvent.WorkflowRunCompleted}`,
-        );
+        logEvent(context, RepositoryEvent.WorkflowRunCompleted, {
+            workflowName,
+            workflowRunId,
+            workflowBranch,
+            commitSha,
+            conclusion,
+        });
 
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
@@ -161,15 +162,10 @@ const EVENTS_CALLBACKS = {
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
 
-        log.info(
-            {
-                id: context.id,
-                isGithubAction: IS_GITHUB_ACTION,
-                workflowName,
-                workflowBranch,
-            },
-            `Argus: ${RepositoryEvent.WorkflowRunRequested}`,
-        );
+        logEvent(context, RepositoryEvent.WorkflowRunRequested, {
+            workflowName,
+            workflowBranch,
+        });
 
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
@@ -192,10 +188,7 @@ const EVENTS_CALLBACKS = {
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
         const prNumber = context.payload.number;
 
-        log.info(
-            {id: context.id, isGithubAction: IS_GITHUB_ACTION, prNumber},
-            `Argus: ${RepositoryEvent.PRClosed}`,
-        );
+        logEvent(context, RepositoryEvent.PRClosed, {prNumber});
 
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 

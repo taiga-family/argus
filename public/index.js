@@ -212531,6 +212531,7 @@ const RepositoryEvent = {
     WorkflowRunRequested: 'workflow_run.requested',
     PRClosed: 'pull_request.closed',
 };
+const logEvent = (context, event, fields) => context.log.info({ id: context.id, isGithubAction: IS_GITHUB_ACTION, ...fields }, `Argus: ${event}`);
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
         const { log } = context;
@@ -212540,15 +212541,13 @@ const EVENTS_CALLBACKS = {
         const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
         const conclusion = getWorkflowRunConclusion(context);
-        log.info({
-            id: context.id,
-            isGithubAction: IS_GITHUB_ACTION,
+        logEvent(context, RepositoryEvent.WorkflowRunCompleted, {
             workflowName,
             workflowRunId,
             workflowBranch,
             commitSha,
             conclusion,
-        }, `Argus: ${RepositoryEvent.WorkflowRunCompleted}`);
+        });
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
@@ -212610,12 +212609,10 @@ const EVENTS_CALLBACKS = {
         const bot = new ScreenshotBot(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        log.info({
-            id: context.id,
-            isGithubAction: IS_GITHUB_ACTION,
+        logEvent(context, RepositoryEvent.WorkflowRunRequested, {
             workflowName,
             workflowBranch,
-        }, `Argus: ${RepositoryEvent.WorkflowRunRequested}`);
+        });
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
@@ -212631,7 +212628,7 @@ const EVENTS_CALLBACKS = {
         const { log } = context;
         const bot = new ScreenshotBot(context);
         const prNumber = context.payload.number;
-        log.info({ id: context.id, isGithubAction: IS_GITHUB_ACTION, prNumber }, `Argus: ${RepositoryEvent.PRClosed}`);
+        logEvent(context, RepositoryEvent.PRClosed, { prNumber });
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
         if (!oldBotComment?.id) {
             return log.info('Argus: no previous bot comment found for this PR');
