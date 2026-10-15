@@ -23,7 +23,7 @@
     },
     "prettier": "@taiga-ui/prettier-config",
     "dependencies": {
-        "adm-zip": "0.6.0",
+        "adm-zip": "0.6.1",
         "probot": "13.4.7"
     },
     "devDependencies": {
@@ -34,12 +34,12 @@
         "@rollup/plugin-json": "6.1.0",
         "@rollup/plugin-node-resolve": "16.0.3",
         "@rollup/plugin-typescript": "12.3.0",
-        "@taiga-ui/eslint-plugin-experience-next": "0.558.0",
-        "@taiga-ui/prettier-config": "0.558.0",
+        "@taiga-ui/eslint-plugin-experience-next": "0.565.0",
+        "@taiga-ui/prettier-config": "0.565.0",
         "@types/adm-zip": "0.5.8",
-        "@types/node": "22.20.1",
+        "@types/node": "22.20.4",
         "concurrently": "9.2.4",
-        "rollup": "4.62.5",
+        "rollup": "4.63.5",
         "smee-client": "2.0.4",
         "typescript": "5.9.3",
         "wait-on": "8.0.5"
