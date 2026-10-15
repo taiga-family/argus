@@ -41,7 +41,6 @@ export interface IBotConfigs {
 export interface IBotConfigsSource {
     owner: string;
     repo: string;
+    /** Empty when no config file was found and `DEFAULT_BOT_CONFIGS` were used */
     path: string;
-    /** Whether the config file was found in the repository, or `DEFAULT_BOT_CONFIGS` were used instead */
-    found: boolean;
 }

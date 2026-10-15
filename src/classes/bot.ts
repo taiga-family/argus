@@ -120,25 +120,32 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
     ): Promise<Array<IWorkflowArtifact<F>>> {
         const workflowRunInfo = this.context.repo({run_id: workflowRunId});
 
-        const artifactsInfo =
-            await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
+        const artifactsInfo = await this.context.octokit.actions
+            .listWorkflowRunArtifacts(workflowRunInfo)
+            .catch(() => null);
 
-        const artifacts = artifactsInfo.data.artifacts;
+        const artifacts = artifactsInfo?.data.artifacts ?? [];
 
-        return Promise.all(
-            artifacts.map(async ({id, name, size_in_bytes: sizeInBytes}) =>
-                this.context.octokit.actions
-                    .downloadArtifact(
-                        this.context.repo({artifact_id: id, archive_format: 'zip'}),
-                    )
-                    .then(({data}) => ({
-                        id,
-                        name,
-                        sizeInBytes,
-                        data: data as F,
-                    })),
-            ),
-        );
+        if (artifacts.length) {
+            // https://github.com/probot/probot/issues/1680
+            // @ts-ignore TS2590: Expression produces a union type that is too complex to represent.
+            const artifactsRequests = artifacts.map(
+                async ({
+                    id,
+                    name,
+                    size_in_bytes: sizeInBytes,
+                }): Promise<IWorkflowArtifact<F>> =>
+                    this.context.octokit.actions
+                        .downloadArtifact(
+                            this.context.repo({artifact_id: id, archive_format: 'zip'}),
+                        )
+                        .then(({data}) => ({id, name, sizeInBytes, data: data as F})),
+            );
+
+            return Promise.all(artifactsRequests);
+        }
+
+        return [];
     }
 
     /**
@@ -393,7 +400,8 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
 
 export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     private botConfigs: Required<IBotConfigs> | null = null;
-    private botConfigsSource: IBotConfigsSource | null = null;
+
+    public botConfigsSource: IBotConfigsSource | null = null;
 
     public async loadBotConfigs(branch: string): Promise<Required<IBotConfigs>> {
         const repoInfo = this.context.repo();
@@ -417,8 +425,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                 this.botConfigsSource = {
                     owner,
                     repo,
-                    path,
-                    found: files.some((file) => file.config !== null),
+                    path: files.some((file) => file.config !== null) ? path : '',
                 };
 
                 return config;
@@ -428,15 +435,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     public async getBotConfigs(
         branch: string = DEFAULT_MAIN_BRANCH,
     ): Promise<Required<IBotConfigs>> {
-        if (!this.botConfigs) {
-            this.botConfigs = await this.loadBotConfigs(branch);
-        }
-
-        return this.botConfigs;
-    }
-
-    public getBotConfigsSource(): IBotConfigsSource | null {
-        return this.botConfigsSource;
+        return this.botConfigs || this.loadBotConfigs(branch);
     }
 
     public async getPrevBotReportComment(prNumber: number): Promise<IssueComment | null> {
@@ -535,13 +534,10 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         });
     }
 
-    /**
-     * @returns `null` when the workflow should be processed, or a human-readable skip reason otherwise.
-     */
     public async checkShouldSkipWorkflow(
         workflowName: string,
         workflowBranch: string,
-    ): Promise<string | null> {
+    ): Promise<boolean> {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
@@ -553,19 +549,13 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
                     new RegExp(regExp, 'gi').test(workflowName),
                 ));
 
-        if (!hasTests) {
-            return `workflow "${workflowName}" does not match configured "workflows" patterns`;
-        }
-
         const branchIgnored =
             !!workflowBranch &&
             this.botConfigs['branches-ignore'].some((regExp) =>
                 new RegExp(regExp, 'gi').test(workflowBranch),
             );
 
-        return branchIgnored
-            ? `branch "${workflowBranch}" matches configured "branches-ignore" patterns`
-            : null;
+        return !hasTests || branchIgnored;
     }
 
     public async deleteUploadedImagesFolder(prNumber: number): Promise<string | null> {

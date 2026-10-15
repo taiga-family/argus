@@ -1,36 +1,15 @@
-import * as core from '@actions/core';
 import {type Context, type Probot} from 'probot';
 
 import {ScreenshotBot} from './classes';
+import {BotReportMessage, IS_GITHUB_ACTION, LOG_MAX_FILE_ENTRIES} from './constants';
 import {
-    BotReportMessage,
-    IS_GITHUB_ACTION,
-    LOG_MAX_FILE_ENTRIES,
-    LogSection,
-    STORAGE_BRANCH,
-} from './constants';
-import {
-    getBranchUrl,
-    getCommitUrl,
-    getPrUrl,
     getWorkflowBranch,
-    getWorkflowHeadRepo,
     getWorkflowHeadSha,
     getWorkflowName,
-    getWorkflowPrNumbers,
     getWorkflowRunConclusion,
     getWorkflowRunId,
-    getWorkflowRunUrl,
 } from './selectors';
-import {
-    createLogger,
-    formatBytes,
-    formatDuration,
-    getFailureReport,
-    getFilesFromZipFile,
-    type IBotLogger,
-    zip,
-} from './utils';
+import {getFailureReport, getFilesFromZipFile, zip} from './utils';
 
 const RepositoryEvent = {
     WorkflowRunCompleted: 'workflow_run.completed',
@@ -42,119 +21,58 @@ const RepositoryEvent = {
     PRClosed: 'pull_request.closed',
 } as const;
 
-const logContext = (
-    log: IBotLogger,
-    {id, repo}: Pick<Context, 'id' | 'repo'>,
-    event: string,
-    rows: Array<[string, string]>,
-): void => {
-    const {owner, repo: name} = repo();
-
-    log.group(LogSection.Context, () =>
-        log.keyValue([
-            ['Event', event],
-            [IS_GITHUB_ACTION ? 'Action run id' : 'Delivery id', id],
-            ['Repository', `${owner}/${name}`],
-            ...rows,
-            ['Run mode', IS_GITHUB_ACTION ? 'GitHub Action' : 'GitHub App'],
-        ]),
-    );
-};
-
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
         context: Context<'workflow_run.completed'>,
     ) => {
-        const startedAt = Date.now();
-        const log = createLogger(context.log);
+        const {log} = context;
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
-        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
-        const headRepo = getWorkflowHeadRepo(context);
-        const headRepoRef = {owner: headRepo.owner.login, repo: headRepo.name};
-        const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
 
-        logContext(log, context, RepositoryEvent.WorkflowRunCompleted, [
-            [
-                'Commit',
-                commitSha
-                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
-                    : '(unknown)',
-            ],
-            [
-                'Workflow',
-                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-            ],
-            ['Head branch', workflowBranch || '(unknown)'],
-            [
-                'Head repo',
-                `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
-            ],
-            ['Conclusion', conclusion],
-        ]);
+        log.info(
+            {
+                id: context.id,
+                isGithubAction: IS_GITHUB_ACTION,
+                workflowName,
+                workflowRunId,
+                workflowBranch,
+                commitSha,
+                conclusion,
+            },
+            `Argus: ${RepositoryEvent.WorkflowRunCompleted}`,
+        );
 
-        const [prNumber, skipReason] = await Promise.all([
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
 
-        if (prNumber && getWorkflowPrNumbers(context).length === 0) {
-            log.notice(
-                `Argus: PR #${prNumber} resolved via fallback search by head SHA (fork contribution)`,
-            );
-        }
-
         if (!prNumber) {
-            return log.notice(
-                'Argus: pull request not found for this workflow run — nothing to do',
+            return log.info('Argus: pull request not found for this workflow run');
+        }
+
+        if (shouldSkipWorkflow) {
+            return log.info(
+                {workflowName, workflowBranch},
+                'Argus: skipped by "workflows" / "branches-ignore" configs',
             );
         }
-
-        if (skipReason) {
-            return log.notice(`Argus: skipped — ${skipReason}`);
-        }
-
-        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
 
         if (conclusion === 'success') {
-            const comment = await bot.createOrUpdateReport(
-                prNumber,
-                BotReportMessage.SuccessWorkflow,
-            );
-
-            log.info(`Report comment  ${comment.data.html_url}`);
-            log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
-
-            return comment;
+            return bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
         }
 
         if (!workflowRunId) {
-            return log.notice('Argus: workflow run id is missing — nothing to do');
+            return log.warn('Argus: workflow run id is missing');
         }
 
-        const botConfigs = await bot.getBotConfigs(workflowBranch);
-        const configSource = bot.getBotConfigsSource();
+        const botConfigs = await bot.getBotConfigs();
 
-        log.group(LogSection.BotConfigs, () =>
-            log.keyValue([
-                [
-                    'Source',
-                    configSource
-                        ? `${configSource.path} @ ${configSource.owner}/${configSource.repo} (${
-                              configSource.found ? 'found' : 'defaults'
-                          })`
-                        : '(unknown)',
-                ],
-                ...Object.entries(botConfigs).map(([key, value]): [string, string] => [
-                    key,
-                    JSON.stringify(value),
-                ]),
-            ]),
-        );
+        log.info({botConfigs, source: bot.botConfigsSource}, 'Argus: bot configs');
 
         const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
 
@@ -162,51 +80,28 @@ const EVENTS_CALLBACKS = {
             log.warn('Argus: no workflow artifacts found');
         }
 
-        log.group(`${LogSection.Artifacts} (${artifacts.length})`, () =>
-            log.list(
-                artifacts.map(
-                    (artifact, i) =>
-                        `${i + 1}. ${artifact.name}   ${formatBytes(
-                            artifact.sizeInBytes,
-                        )}   id ${artifact.id}`,
-                ),
-            ),
-        );
-
         let loggedFiles = 0;
 
-        log.group(LogSection.FilesInsideArtifacts, () => {
-            artifacts.forEach((artifact) => {
-                const entries = getFilesFromZipFile(artifact.data).sort((a, b) =>
-                    a.entryName.localeCompare(b.entryName),
-                );
+        artifacts.forEach(({id, name, sizeInBytes, data}) => {
+            const files = getFilesFromZipFile(data)
+                .map((entry) => entry.entryName)
+                .sort();
 
-                const limit = core.isDebug()
-                    ? entries.length
-                    : Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles);
+            const shown = files.slice(0, Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles));
 
-                const shown = entries.slice(0, limit);
-
-                log.info(`${artifact.name} (${entries.length} files)`);
-                log.list(
-                    shown.map(
-                        (entry) =>
-                            `  ${entry.entryName}  ${formatBytes(entry.header.size)}`,
-                    ),
-                );
-
-                if (entries.length > shown.length) {
-                    log.info(
-                        `  … ${entries.length - shown.length} more files (output truncated)`,
-                    );
-                }
-
-                loggedFiles += shown.length;
-            });
+            loggedFiles += shown.length;
+            log.info(
+                {
+                    id,
+                    sizeInBytes,
+                    files: shown,
+                    truncatedFiles: files.length - shown.length,
+                },
+                `Argus: artifact "${name}" (${files.length} files)`,
+            );
         });
 
         const artifactsData = artifacts.map((artifact) => artifact.data);
-
         const failedTestsImages = await bot.getScreenshotDiffImages(
             artifactsData,
             workflowBranch,
@@ -232,38 +127,18 @@ const EVENTS_CALLBACKS = {
                 failedTestsImages.length,
             );
 
-        log.group(`${LogSection.ScreenshotDiffs} (${failedTestsImages.length})`, () =>
-            log.list(
-                zip(failedTestsImages, failedTestsImagesUrls).map(
-                    ([image, url]) => `${image.entryName}\n  → ${url}`,
-                ),
-            ),
-        );
-
-        log.group(`${LogSection.NewScreenshots} (${newTestsImages.length})`, () =>
-            log.list(
-                zip(newTestsImages, newTestsImagesUrls).map(
-                    ([image, url]) => `${image.entryName}\n  → ${url}`,
-                ),
-            ),
-        );
-
-        if (!failedTestsImages.length && !newTestsImages.length) {
+        if (failedTestsImages.length || newTestsImages.length) {
+            log.info(
+                {
+                    diffs: failedTestsImages.map((image) => image.entryName),
+                    newScreenshots: newTestsImages.map((image) => image.entryName),
+                    storageCommitSha: newCommitSha || diffsCommitSha,
+                },
+                'Argus: uploaded screenshots',
+            );
+        } else {
             log.warn(
                 'Argus: no screenshot diff/new images matched the configured patterns',
-            );
-        }
-
-        const uploadedCommitSha = newCommitSha || diffsCommitSha;
-
-        if (uploadedCommitSha) {
-            log.info(
-                `Uploaded ${
-                    failedTestsImages.length + newTestsImages.length
-                } image(s) to branch "${STORAGE_BRANCH}"  ${getBranchUrl(repo, STORAGE_BRANCH)}`,
-            );
-            log.info(
-                `Storage commit  ${uploadedCommitSha}  ${getCommitUrl(repo, uploadedCommitSha)}`,
             );
         }
 
@@ -276,96 +151,63 @@ const EVENTS_CALLBACKS = {
                   )
                 : BotReportMessage.FailedWorkflowNoScreenshots;
 
-        const comment = await bot.createOrUpdateReport(prNumber, reportText);
-
-        log.info(`Report comment  ${comment.data.html_url}`);
-        log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
-
-        return comment;
+        return bot.createOrUpdateReport(prNumber, reportText);
     },
     [RepositoryEvent.WorkflowRunRequested]: async (
         context: Context<'workflow_run.requested'>,
     ) => {
-        const log = createLogger(context.log);
+        const {log} = context;
         const bot = new ScreenshotBot<'workflow_run.requested'>(context);
-        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        const workflowRunId = getWorkflowRunId(context);
 
-        logContext(log, context, RepositoryEvent.WorkflowRunRequested, [
-            [
-                'Workflow',
-                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-            ],
-            ['Head branch', workflowBranch || '(unknown)'],
-        ]);
+        log.info(
+            {
+                id: context.id,
+                isGithubAction: IS_GITHUB_ACTION,
+                workflowName,
+                workflowBranch,
+            },
+            `Argus: ${RepositoryEvent.WorkflowRunRequested}`,
+        );
 
-        const [prNumber, skipReason] = await Promise.all([
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
 
         if (!prNumber) {
-            return log.notice(
-                'Argus: pull request not found for this workflow run — nothing to do',
-            );
+            return log.info('Argus: pull request not found for this workflow run');
         }
 
-        if (skipReason) {
-            return log.notice(`Argus: skipped — ${skipReason}`);
-        }
-
-        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
-
-        const comment = await bot.createOrUpdateReport(
-            prNumber,
-            BotReportMessage.LoadingWorkflow,
-        );
-
-        log.info(`Report comment  ${comment.data.html_url}`);
-
-        return comment;
+        return shouldSkipWorkflow
+            ? log.info(
+                  {workflowName, workflowBranch},
+                  'Argus: skipped by "workflows" / "branches-ignore" configs',
+              )
+            : bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
     },
     [RepositoryEvent.PRClosed]: async (context: Context<'pull_request.closed'>) => {
-        const log = createLogger(context.log);
+        const {log} = context;
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
-        const repo = context.repo();
         const prNumber = context.payload.number;
 
-        logContext(log, context, RepositoryEvent.PRClosed, [
-            ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
-        ]);
+        log.info(
+            {id: context.id, isGithubAction: IS_GITHUB_ACTION, prNumber},
+            `Argus: ${RepositoryEvent.PRClosed}`,
+        );
 
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
         if (!oldBotComment?.id) {
-            return log.notice(
-                'Argus: no previous bot comment found for this PR — nothing to clean up',
-            );
+            return log.info('Argus: no previous bot comment found for this PR');
         }
 
         const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
 
-        if (deletedCommitSha) {
-            log.info(
-                `Deleted stored screenshots, commit  ${deletedCommitSha}  ${getCommitUrl(
-                    repo,
-                    deletedCommitSha,
-                )}`,
-            );
-        } else {
-            log.notice('Argus: no stored screenshots found for this PR');
-        }
+        log.info({deletedCommitSha}, 'Argus: deleted stored screenshots');
 
-        const comment = await bot.createOrUpdateReport(
-            prNumber,
-            BotReportMessage.PRClosed,
-        );
-
-        log.info(`Report comment  ${comment.data.html_url}`);
-
-        return comment;
+        return bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
     },
 } as const;
 

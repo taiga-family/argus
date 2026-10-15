@@ -35,7 +35,7 @@ import require$$3$6 from 'https';
 import require$$14 from 'stream/web';
 import require$$5$5 from 'util/types';
 import require$$1$d from 'console';
-import require$$0$o from 'zlib';
+import require$$3$7 from 'zlib';
 import require$$6$3 from 'timers';
 
 function _mergeNamespaces(n, m) {
@@ -113206,7 +113206,7 @@ function requireGetProbotOctokitWithDefaults () {
 
 var getWebhooks = {};
 
-const createLogger$2 = (logger = {}) => {
+const createLogger$1 = (logger = {}) => {
   if (typeof logger.debug !== "function") {
     logger.debug = () => {
     };
@@ -113777,7 +113777,7 @@ function removeListener(state, webhookNameOrNames, handler) {
 function createEventHandler(options) {
   const state = {
     hooks: {},
-    log: createLogger$2(options && options.log)
+    log: createLogger$1(options && options.log)
   };
   if (options && options.transform) {
     state.transform = options.transform;
@@ -114011,7 +114011,7 @@ async function middleware(webhooks, options, request, response, next) {
 
 function createNodeMiddleware$1(webhooks, {
   path = "/api/github/webhooks",
-  log = createLogger$2()
+  log = createLogger$1()
 } = {}) {
   return middleware.bind(null, webhooks, {
     path,
@@ -114028,7 +114028,7 @@ class Webhooks {
       eventHandler: createEventHandler(options),
       secret: options.secret,
       hooks: {},
-      log: createLogger$2(options.log)
+      log: createLogger$1(options.log)
     };
     this.sign = sign$1.bind(null, options.secret);
     this.verify = verify.bind(null, options.secret);
@@ -114499,7 +114499,7 @@ var noop$1 = () => {
 };
 var consoleWarn = console.warn.bind(console);
 var consoleError = console.error.bind(console);
-function createLogger$1(logger = {}) {
+function createLogger(logger = {}) {
   if (typeof logger.debug !== "function") {
     logger.debug = noop$1;
   }
@@ -114587,7 +114587,7 @@ var Octokit = class {
     }
     this.request = request$3.defaults(requestDefaults);
     this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
-    this.log = createLogger$1(options.log);
+    this.log = createLogger(options.log);
     this.hook = hook;
     if (!options.authStrategy) {
       if (!options.auth) {
@@ -198116,7 +198116,7 @@ function requireFetch () {
 	} = requireResponse();
 	const { Headers } = requireHeaders$1();
 	const { Request, makeRequest } = requireRequest();
-	const zlib = require$$0$o;
+	const zlib = require$$3$7;
 	const {
 	  bytesMatch,
 	  makePolicyContainer,
@@ -208385,26 +208385,12 @@ const IMAGES_STORAGE_FOLDER = '__bot-screenshots';
 const TEST_REPORT_HIDDEN_LABEL = 'test-report';
 
 const DEFAULT_MAIN_BRANCH = 'main';
-const GITHUB_DOMAIN = 'https://github.com';
 const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTIONS;
+// shortcut: one cap for all environments, raise it if 200 files are not enough to debug
+const LOG_MAX_FILE_ENTRIES = 200;
 
 const GithubFileMode = {
     Blob: '100644'};
-
-const LOG_MAX_FILE_ENTRIES = 200;
-const LogSection = {
-    Context: '[ARGUS] context',
-    BotConfigs: '[ARGUS] bot configurations',
-    Artifacts: '[ARGUS] artifacts',
-    FilesInsideArtifacts: '[ARGUS] files inside artifacts',
-    ScreenshotDiffs: '[ARGUS] screenshot diffs',
-    NewScreenshots: '[ARGUS] new screenshots',
-};
-
-const getPrUrl = ({ owner, repo }, prNumber) => `${GITHUB_DOMAIN}/${owner}/${repo}/pull/${prNumber}`;
-const getCommitUrl = ({ owner, repo }, commitSha) => `${GITHUB_DOMAIN}/${owner}/${repo}/commit/${commitSha}`;
-const getWorkflowRunUrl = ({ owner, repo }, workflowRunId) => `${GITHUB_DOMAIN}/${owner}/${repo}/actions/runs/${workflowRunId}`;
-const getBranchUrl = ({ owner, repo }, branch) => `${GITHUB_DOMAIN}/${owner}/${repo}/tree/${branch}`;
 
 const getWorkflowName = (context) => context.payload.workflow.name || '';
 const getWorkflowBranch = (context) => context.payload.workflow_run.head_branch || '';
@@ -208427,72 +208413,6 @@ function checkContainsHiddenLabel(markdownText, label) {
 }
 
 const zip = (a, b) => a.map((item, i) => [item, b[i]]);
-
-const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
-function formatBytes(bytes) {
-    if (bytes === 0) {
-        return '0 B';
-    }
-    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), BYTE_UNITS.length - 1);
-    const value = bytes / 1024 ** exponent;
-    return `${exponent === 0 ? value : value.toFixed(1)} ${BYTE_UNITS[exponent]}`;
-}
-function formatDuration(ms) {
-    return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
-}
-function formatKeyValue(rows) {
-    const keyWidth = Math.max(0, ...rows.map(([key]) => key.length));
-    return rows.map(([key, value]) => `${key.padEnd(keyWidth)}  ${value}`).join('\n');
-}
-
-function createLogger(log) {
-    const info = (message) => {
-        if (IS_GITHUB_ACTION) {
-            coreExports.info(message);
-        }
-        else {
-            log.info(message);
-        }
-    };
-    const notice = (message) => {
-        if (IS_GITHUB_ACTION) {
-            coreExports.notice(message);
-        }
-        else {
-            log.info(message);
-        }
-    };
-    const warn = (message) => {
-        if (IS_GITHUB_ACTION) {
-            coreExports.warning(message);
-        }
-        else {
-            log.warn(message);
-        }
-    };
-    // GitHub does not support nested `::group::` sections, so callers must not nest `group()` calls.
-    const group = (title, render) => {
-        if (!IS_GITHUB_ACTION) {
-            info(`— ${title} —`);
-            render();
-            return;
-        }
-        coreExports.startGroup(title);
-        try {
-            render();
-        }
-        finally {
-            coreExports.endGroup();
-        }
-    };
-    const keyValue = (rows) => {
-        info(formatKeyValue(rows));
-    };
-    const list = (items) => {
-        items.forEach(info);
-    };
-    return { group, info, notice, warn, keyValue, list };
-}
 
 const createCollapsibleScreenshot = ([{ entryName }, link], initialOpen = true, imageAttrs = []) => `
 <details ${initialOpen ? 'open' : ''}>
@@ -208703,6 +208623,7 @@ function requireErrors () {
 		    /* ZipEntry error messages*/
 		    NO_DATA: "Nothing to decompress",
 		    BAD_CRC: "CRC32 checksum failed {0}",
+		    MAX_OUTPUT_EXCEEDED: "Decompressed data exceeds the declared uncompressed size",
 		    FILE_IN_THE_WAY: "There is a file in the way: {0}",
 		    UNKNOWN_METHOD: "Invalid/unsupported compression method",
 
@@ -208724,11 +208645,13 @@ function requireErrors () {
 		    DISK_ENTRY_TOO_LARGE: "Number of disk entries is too large",
 		    NO_ZIP: "No zip file was loaded",
 		    NO_ENTRY: "Entry doesn't exist",
+		    DUPLICATE_ENTRY: "Duplicate entry name {0}",
 		    DIRECTORY_CONTENT_ERROR: "A directory cannot have content",
 		    FILE_NOT_FOUND: 'File not found: "{0}"',
 		    NOT_IMPLEMENTED: "Not implemented",
 		    INVALID_FILENAME: "Invalid filename",
 		    INVALID_FORMAT: "Invalid or unsupported zip format. No END header found",
+		    ZIP64_VALUE_TOO_LARGE: "Zip64 value exceeds the maximum safe integer",
 		    INVALID_PASS_PARAM: "Incompatible password parameter",
 		    WRONG_PASSWORD: "Wrong Password",
 
@@ -208923,13 +208846,67 @@ function requireUtils () {
 	    });
 	};
 
+	// Guard extraction against writing through a symlink that already exists inside
+	// the target directory. sanitize() only proves the textual path stays under the
+	// root; it cannot see that a component on disk is a symlink pointing elsewhere,
+	// so open()/mkdir() would follow it and write outside the root. Walk every path
+	// component strictly below root and reject any that is a symlink. Components at
+	// or above root are the caller's own choice and are left untouched, so a root
+	// that itself lives under a symlink (e.g. /tmp on macOS) still extracts.
+	Utils.prototype.assertPathSafe = function (/*String*/ root, /*String*/ target) {
+	    const self = this;
+	    if (typeof self.fs.lstatSync !== "function") return;
+
+	    const resolvedRoot = pth.resolve(root);
+	    const resolvedTarget = pth.resolve(target);
+	    if (resolvedTarget === resolvedRoot) return;
+
+	    const rel = pth.relative(resolvedRoot, resolvedTarget);
+	    // Not under root: sanitize() is responsible for that case; nothing to walk.
+	    if (!rel || rel === ".." || rel.startsWith(".." + pth.sep) || pth.isAbsolute(rel)) return;
+
+	    let cur = resolvedRoot;
+	    for (const part of rel.split(pth.sep)) {
+	        if (!part || part === ".") continue;
+	        cur = pth.join(cur, part);
+	        let stat;
+	        try {
+	            stat = self.fs.lstatSync(cur);
+	        } catch (e) {
+	            break; // component does not exist yet: nothing below it can be a symlink
+	        }
+	        if (stat.isSymbolicLink()) throw Errors.FILE_IN_THE_WAY(`"${cur}"`);
+	    }
+	};
+
 	Utils.prototype.findFiles = function (/*String*/ path) {
 	    const self = this;
+	    const canLstat = typeof self.fs.lstatSync === "function";
+	    const rootReal = self.fs.realpathSync(path);
+
+	    // A symlink whose target lies outside the folder being archived must not be
+	    // followed: statSync would dereference it and copy the target's contents into
+	    // the archive, disclosing files outside the root (GHSA-wx42-xcp7-pgr4). Allow
+	    // symlinks that resolve to a location inside the root, reject any that escape.
+	    function escapesRoot(/*String*/ p) {
+	        if (!canLstat) return false;
+	        if (!self.fs.lstatSync(p).isSymbolicLink()) return false;
+	        let real;
+	        try {
+	            real = self.fs.realpathSync(p);
+	        } catch (e) {
+	            return true; // dangling or unresolvable symlink: do not follow
+	        }
+	        return !(real === rootReal || real.startsWith(rootReal + pth.sep));
+	    }
 
 	    function findSync(/*String*/ dir, /*RegExp*/ pattern, /*Boolean*/ recursive, /*Set*/ visited) {
 	        let files = [];
 	        self.fs.readdirSync(dir).forEach(function (file) {
 	            const path = pth.join(dir, file);
+
+	            if (escapesRoot(path)) return;
+
 	            const stat = self.fs.statSync(path);
 
 	            {
@@ -208951,7 +208928,7 @@ function requireUtils () {
 	        return files;
 	    }
 
-	    return findSync(path, undefined, true, new Set([self.fs.realpathSync(path)]));
+	    return findSync(path, undefined, true, new Set([rootReal]));
 	};
 
 	/**
@@ -208977,6 +208954,25 @@ function requireUtils () {
 	        cb(err, err ? undefined : results);
 	    };
 
+	    const canLstat = typeof self.fs.lstat === "function";
+	    let rootReal = null;
+
+	    // Reject a symlink whose target escapes the root being archived, so its
+	    // contents are not dereferenced and copied into the archive
+	    // (GHSA-wx42-xcp7-pgr4). A symlink resolving to a location inside the root is
+	    // allowed; a dangling or escaping one is skipped. Calls back (err, escapes).
+	    const escapesRoot = function (file, cb) {
+	        if (!canLstat) return cb(null, false);
+	        self.fs.lstat(file, function (err, lst) {
+	            if (err) return cb(err);
+	            if (!lst || !lst.isSymbolicLink()) return cb(null, false);
+	            self.fs.realpath(file, function (err, real) {
+	                if (err) return cb(null, true); // dangling: do not follow
+	                cb(null, !(real === rootReal || real.startsWith(rootReal + pth.sep)));
+	            });
+	        });
+	    };
+
 	    // Descend by resolved real path and skip directories already visited, so a
 	    // symlink pointing back to an ancestor cannot recurse forever (issue #541).
 	    const walk = function (dir, visited, done) {
@@ -208986,27 +208982,34 @@ function requireUtils () {
 	            if (!pending) return done();
 	            list.forEach(function (name) {
 	                const file = pth.join(dir, name);
-	                self.fs.stat(file, function (err, stat) {
+	                escapesRoot(file, function (err, escapes) {
 	                    if (err) return done(err);
-	                    if (!stat) {
+	                    if (escapes) {
 	                        if (!--pending) done();
 	                        return;
 	                    }
-	                    results.push(pth.normalize(file) + (stat.isDirectory() ? self.sep : ""));
-	                    if (!stat.isDirectory()) {
-	                        if (!--pending) done();
-	                        return;
-	                    }
-	                    self.fs.realpath(file, function (err, realDir) {
+	                    self.fs.stat(file, function (err, stat) {
 	                        if (err) return done(err);
-	                        if (visited.has(realDir)) {
+	                        if (!stat) {
 	                            if (!--pending) done();
 	                            return;
 	                        }
-	                        visited.add(realDir);
-	                        walk(file, visited, function (err) {
-	                            if (err) return done(err);
+	                        results.push(pth.normalize(file) + (stat.isDirectory() ? self.sep : ""));
+	                        if (!stat.isDirectory()) {
 	                            if (!--pending) done();
+	                            return;
+	                        }
+	                        self.fs.realpath(file, function (err, realDir) {
+	                            if (err) return done(err);
+	                            if (visited.has(realDir)) {
+	                                if (!--pending) done();
+	                                return;
+	                            }
+	                            visited.add(realDir);
+	                            walk(file, visited, function (err) {
+	                                if (err) return done(err);
+	                                if (!--pending) done();
+	                            });
 	                        });
 	                    });
 	                });
@@ -209016,6 +209019,7 @@ function requireUtils () {
 
 	    self.fs.realpath(dir, function (err, realDir) {
 	        if (err) return finish(err);
+	        rootReal = realDir;
 	        walk(dir, new Set([realDir]), finish);
 	    });
 	};
@@ -209125,7 +209129,14 @@ function requireUtils () {
 	Utils.readBigUInt64LE = function (/*Buffer*/ buffer, /*int*/ index) {
 	    const lo = buffer.readUInt32LE(index);
 	    const hi = buffer.readUInt32LE(index + 4);
-	    return hi * 0x100000000 + lo;
+	    const value = hi * 0x100000000 + lo;
+	    // The result is a JS number, so values above 2^53 - 1 cannot be represented
+	    // exactly. These are zip64 sizes/offsets/counts used as buffer indices; a
+	    // silently rounded value would misparse the archive. Reject instead.
+	    if (value > Number.MAX_SAFE_INTEGER) {
+	        throw Errors.ZIP64_VALUE_TOO_LARGE();
+	    }
+	    return value;
 	};
 
 	Utils.writeBigUInt64LE = function (/*Buffer*/ buffer, /*Number*/ value, /*int*/ index) {
@@ -209460,7 +209471,12 @@ function requireEntryHeader () {
 
 	        // get Unix file permissions
 	        get fileAttr() {
-	            return (_attr || 0) >> 16 & 0xfff;
+	            // Mask to the 9 rwxrwxrwx bits only. The setuid (0o4000), setgid
+	            // (0o2000) and sticky (0o1000) bits are attacker-controlled archive
+	            // metadata; preserving them on extraction (keepOriginalPermission)
+	            // lets a crafted zip plant a setuid-root binary when extracting as
+	            // root, a local privilege escalation (GHSA-679w-jf3m-wh39).
+	            return ((_attr || 0) >> 16) & 0o777;
 	        },
 
 	        get offset() {
@@ -209487,6 +209503,13 @@ function requireEntryHeader () {
 	        },
 
 	        loadLocalHeaderFromBinary: function (/*Buffer*/ input) {
+	            // The LOC offset comes from the central directory and is attacker
+	            // controlled. Reject one that would read past the end of the buffer,
+	            // otherwise readUInt32LE below throws a raw RangeError instead of a
+	            // clean INVALID_LOC (and escapes the async error path).
+	            if (_offset < 0 || _offset + Constants.LOCHDR > input.length) {
+	                throw Utils.Errors.INVALID_LOC();
+	            }
 	            var data = input.slice(_offset, _offset + Constants.LOCHDR);
 	            // 30 bytes and should start with "PK\003\004"
 	            if (data.readUInt32LE(0) !== Constants.LOCSIG) {
@@ -209865,7 +209888,7 @@ function requireDeflater () {
 	if (hasRequiredDeflater) return deflater;
 	hasRequiredDeflater = 1;
 	deflater = function (/*Buffer*/ inbuf) {
-	    var zlib = require$$0$o;
+	    var zlib = require$$3$7;
 
 	    var opts = { chunkSize: (parseInt(inbuf.length / 1024) + 1) * 1024 };
 
@@ -209907,10 +209930,17 @@ function requireInflater () {
 	if (hasRequiredInflater) return inflater;
 	hasRequiredInflater = 1;
 	const version = +(process?.versions?.node ?? "").split(".")[0] || 0;
+	const Errors = requireErrors();
 
 	inflater = function (/*Buffer*/ inbuf, /*number*/ expectedLength) {
-	    var zlib = require$$0$o;
-	    const option = version >= 15 && expectedLength > 0 ? { maxOutputLength: expectedLength } : {};
+	    var zlib = require$$3$7;
+	    // Cap decompression output at the entry's declared uncompressed size to bound
+	    // decompression bombs (CVE-2026-39244). A declared size of 0 must not disable
+	    // the cap: a genuinely empty entry inflates to 0 bytes, so a 1-byte floor
+	    // still lets it through while stopping a bomb that lies about its size
+	    // (GHSA-rcw4-f5rp-g42v). zlib requires maxOutputLength >= 1.
+	    const maxOutputLength = expectedLength > 0 ? expectedLength : 1;
+	    const option = version >= 15 ? { maxOutputLength } : {};
 
 	    return {
 	        inflate: function () {
@@ -209920,12 +209950,35 @@ function requireInflater () {
 	        inflateAsync: function (/*Function*/ callback) {
 	            var tmp = zlib.createInflateRaw(option),
 	                parts = [],
-	                total = 0;
+	                total = 0,
+	                done = false;
+	            const fail = function (err) {
+	                if (done) return;
+	                done = true;
+	                tmp.destroy();
+	                callback && callback(Buffer.alloc(0), err);
+	            };
+	            // Route stream errors (e.g. Z_DATA_ERROR on malformed input) through the
+	            // callback. Without an "error" listener zlib re-throws the event as an
+	            // uncaught exception on a later tick, crashing the host process instead
+	            // of failing the call (GHSA-8238-w5pm-2374).
+	            tmp.on("error", function (err) {
+	                fail(err);
+	            });
 	            tmp.on("data", function (data) {
-	                parts.push(data);
+	                if (done) return;
 	                total += data.length;
+	                // The streaming API ignores maxOutputLength, so enforce the cap by
+	                // hand; otherwise the async path decompresses without limit while the
+	                // sync path is capped (GHSA-v429-h5qx-84wm, GHSA-c6fg-446q-cg94).
+	                if (total > maxOutputLength) {
+	                    return fail(Errors.MAX_OUTPUT_EXCEEDED());
+	                }
+	                parts.push(data);
 	            });
 	            tmp.on("end", function () {
+	                if (done) return;
+	                done = true;
 	                var buf = Buffer.alloc(total),
 	                    written = 0;
 	                buf.fill(0);
@@ -210170,7 +210223,16 @@ function requireZipEntry () {
 	            return Buffer.alloc(0);
 	        }
 	        _extralocal = _centralHeader.loadLocalHeaderFromBinary(input);
-	        return input.slice(_centralHeader.realDataOffset, _centralHeader.realDataOffset + _centralHeader.compressedSize);
+	        const dataOffset = _centralHeader.realDataOffset;
+	        const dataEnd = dataOffset + _centralHeader.compressedSize;
+	        // The offsets and sizes come from attacker-controlled headers. Require the
+	        // declared compressed extent to be fully present rather than letting slice()
+	        // silently clamp to a short buffer (which only surfaces later as a CRC
+	        // failure). Fail loudly with a header error instead (GHSA-wwrv-q5gf-5843).
+	        if (dataOffset < 0 || dataEnd < dataOffset || dataEnd > input.length) {
+	            throw Utils.Errors.INVALID_LOC();
+	        }
+	        return input.slice(dataOffset, dataEnd);
 	    }
 
 	    function crc32OK(data) {
@@ -210205,19 +210267,32 @@ function requireZipEntry () {
 	            return Buffer.alloc(0);
 	        }
 
-	        var compressedData = getCompressedDataFromZip();
+	        var compressedData;
+	        try {
+	            compressedData = getCompressedDataFromZip();
 
-	        if (compressedData.length === 0) {
-	            // File is empty, nothing to decompress.
-	            if (async && callback) callback(compressedData);
-	            return compressedData;
-	        }
-
-	        if (_centralHeader.encrypted) {
-	            if ("string" !== typeof pass && !Buffer.isBuffer(pass)) {
-	                throw Utils.Errors.INVALID_PASS_PARAM();
+	            if (compressedData.length === 0) {
+	                // File is empty, nothing to decompress.
+	                if (async && callback) callback(compressedData);
+	                return compressedData;
 	            }
-	            compressedData = Methods.ZipCrypto.decrypt(compressedData, _centralHeader, pass);
+
+	            if (_centralHeader.encrypted) {
+	                if ("string" !== typeof pass && !Buffer.isBuffer(pass)) {
+	                    throw Utils.Errors.INVALID_PASS_PARAM();
+	                }
+	                compressedData = Methods.ZipCrypto.decrypt(compressedData, _centralHeader, pass);
+	            }
+	        } catch (err) {
+	            // These synchronous parse/setup steps run before any callback fires.
+	            // In async mode a malformed local header (e.g. a bad LOC offset) would
+	            // otherwise throw out of getDataAsync and bypass the callback error
+	            // channel, crashing the caller. Route it through the callback instead.
+	            if (async && callback) {
+	                callback(Buffer.alloc(0), err);
+	                return Buffer.alloc(0);
+	            }
+	            throw err;
 	        }
 
 	        var data;
@@ -210252,13 +210327,16 @@ function requireZipEntry () {
 	                    }
 	                    return data;
 	                } else {
-	                    inflater.inflateAsync(function (result) {
-	                        if (callback) {
-	                            if (!crc32OK(result)) {
-	                                callback(result, Utils.Errors.BAD_CRC()); //si added error
-	                            } else {
-	                                callback(result);
-	                            }
+	                    inflater.inflateAsync(function (result, err) {
+	                        if (!callback) return;
+	                        if (err) {
+	                            // surface inflater/stream failures instead of validating
+	                            // the empty placeholder buffer against the CRC
+	                            callback(Buffer.alloc(0), err);
+	                        } else if (!crc32OK(result)) {
+	                            callback(result, Utils.Errors.BAD_CRC()); //si added error
+	                        } else {
+	                            callback(result);
 	                        }
 	                    });
 	                }
@@ -210620,6 +210698,16 @@ function requireZipFile () {
 	            if (entry.header.commentLength) entry.comment = inBuffer.slice(tmp, tmp + entry.header.commentLength);
 
 	            index += entry.header.centralHeaderSize;
+
+	            // Reject archives that declare the same entry name twice. adm-zip keeps
+	            // every entry in entryList but only the last in entryTable, so getEntry()
+	            // (table) and extractAllTo() (list) could resolve one name to different
+	            // content: an app that validates entry bytes via getEntry() before
+	            // extracting could approve one file while a different one lands on disk
+	            // (GHSA-p634-w6r4-rjp2). Fail closed on the ambiguity.
+	            if (entry.entryName in entryTable) {
+	                throw Utils.Errors.DUPLICATE_ENTRY(`"${entry.entryName}"`);
+	            }
 
 	            entryList[i] = entry;
 	            entryTable[entry.entryName] = entry;
@@ -211506,7 +211594,11 @@ function requireAdmZip () {
 	        addLocalFolderAsync2: function (options, callback) {
 	            const self = this;
 	            options = typeof options === "object" ? options : { localPath: options };
-	            const localPath = pth.resolve(fixPath(options.localPath));
+	            // Resolve the local filesystem path with the platform resolver. Do NOT
+	            // run it through fixPath: that normalizes ZIP-internal paths to POSIX
+	            // and prepends "/", which turns a Windows path like C:\dir into
+	            // \C:\dir, so readdir finds nothing and the archive comes out empty.
+	            const localPath = pth.resolve(options.localPath);
 	            let { zipPath, filter, namefix } = options;
 
 	            if (filter instanceof RegExp) {
@@ -211541,14 +211633,21 @@ function requireAdmZip () {
 
 	            filetools.fs.open(localPath, "r", function (err) {
 	                if (err && err.code === "ENOENT") {
-	                    callback(undefined, Utils.Errors.FILE_NOT_FOUND(localPath));
+	                    // callback is (err, done); errors belong in the first argument,
+	                    // otherwise addLocalFolderPromise treats the error as "done" and
+	                    // resolves instead of rejecting.
+	                    callback(Utils.Errors.FILE_NOT_FOUND(localPath), false);
 	                } else if (err) {
-	                    callback(undefined, err);
+	                    callback(err, false);
 	                } else {
 	                    filetools.findFilesAsync(localPath, function (err, fileEntries) {
-	                        if (err) return callback(err);
+	                        if (err) return callback(err, false);
 	                        fileEntries = fileEntries.filter((dir) => filter(relPathFix(dir)));
-	                        if (!fileEntries.length) callback(undefined, false);
+	                        // Nothing to add (empty folder or everything filtered out) is a
+	                        // success, not an error. Report done and stop, otherwise the
+	                        // reduce below runs and the callback fires a second time -- and
+	                        // signalling done=false left addLocalFolderPromise hanging.
+	                        if (!fileEntries.length) return callback(undefined, true);
 
 	                        setImmediate(
 	                            fileEntries.reverse().reduce(function (next, entry) {
@@ -211583,7 +211682,7 @@ function requireAdmZip () {
 	        addLocalFolderPromise: function (localPath, props) {
 	            return new Promise((resolve, reject) => {
 	                this.addLocalFolderAsync2(Object.assign({ localPath }, props), (err, done) => {
-	                    if (err) reject(err);
+	                    if (err) return reject(err);
 	                    if (done) resolve(this);
 	                });
 	            });
@@ -211717,6 +211816,8 @@ function requireAdmZip () {
 	                    // collapsed subdirectories together (issue #306).
 	                    var name = canonical(maintainEntryPath ? child.entryName : child.entryName.substring(item.entryName.length));
 	                    var childName = sanitize(targetPath, name);
+	                    // reject writing through a pre-existing symlink inside the target
+	                    filetools.assertPathSafe(targetPath, childName);
 	                    // The reverse operation for attr depend on method addFile()
 	                    const fileAttr = keepOriginalPermission ? child.header.fileAttr : undefined;
 	                    filetools.writeFileTo(childName, content, overwrite, fileAttr);
@@ -211726,6 +211827,9 @@ function requireAdmZip () {
 
 	            var content = item.getData(_zip.password);
 	            if (!content) throw Utils.Errors.CANT_EXTRACT_FILE();
+
+	            // reject writing through a pre-existing symlink inside the target
+	            filetools.assertPathSafe(targetPath, target);
 
 	            if (filetools.fs.existsSync(target) && !overwrite) {
 	                throw Utils.Errors.CANT_OVERRIDE();
@@ -211783,6 +211887,8 @@ function requireAdmZip () {
 	            const dirEntries = [];
 	            _zip.entries.forEach(function (entry) {
 	                var entryName = sanitize(targetPath, canonical(entry.entryName));
+	                // reject writing through a pre-existing symlink inside the target
+	                filetools.assertPathSafe(targetPath, entryName);
 	                if (entry.isDirectory) {
 	                    filetools.makeDir(entryName);
 	                    // defer restoring the directory permission until its files are written
@@ -211862,6 +211968,8 @@ function requireAdmZip () {
 	                // The reverse operation for attr depend on method addFile()
 	                const dirAttr = keepOriginalPermission ? entry.header.fileAttr : undefined;
 	                try {
+	                    // reject writing through a pre-existing symlink inside the target
+	                    filetools.assertPathSafe(targetPath, dirPath);
 	                    filetools.makeDir(dirPath);
 	                } catch (er) {
 	                    callback(getError("Unable to create folder", dirPath));
@@ -211898,6 +212006,12 @@ function requireAdmZip () {
 	                    } else {
 	                        const entryName = pth.normalize(canonical(entry.entryName));
 	                        const filePath = sanitize(targetPath, entryName);
+	                        try {
+	                            // reject writing through a pre-existing symlink inside the target
+	                            filetools.assertPathSafe(targetPath, filePath);
+	                        } catch (er) {
+	                            return next(er);
+	                        }
 	                        entry.getDataAsync(function (content, err_1) {
 	                            if (err_1) {
 	                                next(err_1);
@@ -212096,16 +212210,19 @@ class Bot {
      */
     async getWorkflowArtifacts(workflowRunId) {
         const workflowRunInfo = this.context.repo({ run_id: workflowRunId });
-        const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
-        const artifacts = artifactsInfo.data.artifacts;
-        return Promise.all(artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes }) => this.context.octokit.actions
-            .downloadArtifact(this.context.repo({ artifact_id: id, archive_format: 'zip' }))
-            .then(({ data }) => ({
-            id,
-            name,
-            sizeInBytes,
-            data: data,
-        }))));
+        const artifactsInfo = await this.context.octokit.actions
+            .listWorkflowRunArtifacts(workflowRunInfo)
+            .catch(() => null);
+        const artifacts = artifactsInfo?.data.artifacts ?? [];
+        if (artifacts.length) {
+            // https://github.com/probot/probot/issues/1680
+            // @ts-ignore TS2590: Expression produces a union type that is too complex to represent.
+            const artifactsRequests = artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes, }) => this.context.octokit.actions
+                .downloadArtifact(this.context.repo({ artifact_id: id, archive_format: 'zip' }))
+                .then(({ data }) => ({ id, name, sizeInBytes, data: data })));
+            return Promise.all(artifactsRequests);
+        }
+        return [];
     }
     /**
      * Get file (+ meta info about it) by its path in the repository.
@@ -212303,20 +212420,13 @@ class ScreenshotBot extends Bot {
             this.botConfigsSource = {
                 owner,
                 repo,
-                path,
-                found: files.some((file) => file.config !== null),
+                path: files.some((file) => file.config !== null) ? path : '',
             };
             return config;
         });
     }
     async getBotConfigs(branch = DEFAULT_MAIN_BRANCH) {
-        if (!this.botConfigs) {
-            this.botConfigs = await this.loadBotConfigs(branch);
-        }
-        return this.botConfigs;
-    }
-    getBotConfigsSource() {
-        return this.botConfigsSource;
+        return this.botConfigs || this.loadBotConfigs(branch);
     }
     async getPrevBotReportComment(prNumber) {
         const prComments = await this.getCommentsByIssueId(prNumber);
@@ -212363,9 +212473,6 @@ class ScreenshotBot extends Bot {
             commitMessage: `ci(screenshot-bot): Upload | {pr: ${prNumber}, workflow: ${workflowRunId}}`,
         });
     }
-    /**
-     * @returns `null` when the workflow should be processed, or a human-readable skip reason otherwise.
-     */
     async checkShouldSkipWorkflow(workflowName, workflowBranch) {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
@@ -212373,14 +212480,9 @@ class ScreenshotBot extends Bot {
         const hasTests = IS_GITHUB_ACTION ||
             (workflowName &&
                 this.botConfigs.workflows.some((regExp) => new RegExp(regExp, 'gi').test(workflowName)));
-        if (!hasTests) {
-            return `workflow "${workflowName}" does not match configured "workflows" patterns`;
-        }
         const branchIgnored = !!workflowBranch &&
             this.botConfigs['branches-ignore'].some((regExp) => new RegExp(regExp, 'gi').test(workflowBranch));
-        return branchIgnored
-            ? `branch "${workflowBranch}" matches configured "branches-ignore" patterns`
-            : null;
+        return !hasTests || branchIgnored;
     }
     async deleteUploadedImagesFolder(prNumber) {
         const folder = await this.getFile(this.getSavedImagePathPrefix(prNumber), {
@@ -212429,180 +212531,114 @@ const RepositoryEvent = {
     WorkflowRunRequested: 'workflow_run.requested',
     PRClosed: 'pull_request.closed',
 };
-const logContext = (log, { id, repo }, event, rows) => {
-    const { owner, repo: name } = repo();
-    log.group(LogSection.Context, () => log.keyValue([
-        ['Event', event],
-        [IS_GITHUB_ACTION ? 'Action run id' : 'Delivery id', id],
-        ['Repository', `${owner}/${name}`],
-        ...rows,
-        ['Run mode', IS_GITHUB_ACTION ? 'GitHub Action' : 'GitHub App'],
-    ]));
-};
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
-        const startedAt = Date.now();
-        const log = createLogger(context.log);
+        const { log } = context;
         const bot = new ScreenshotBot(context);
-        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
-        const headRepo = getWorkflowHeadRepo(context);
-        const headRepoRef = { owner: headRepo.owner.login, repo: headRepo.name };
-        const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
-        logContext(log, context, RepositoryEvent.WorkflowRunCompleted, [
-            [
-                'Commit',
-                commitSha
-                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
-                    : '(unknown)',
-            ],
-            [
-                'Workflow',
-                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-            ],
-            ['Head branch', workflowBranch || '(unknown)'],
-            [
-                'Head repo',
-                `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
-            ],
-            ['Conclusion', conclusion],
-        ]);
-        const [prNumber, skipReason] = await Promise.all([
+        log.info({
+            id: context.id,
+            isGithubAction: IS_GITHUB_ACTION,
+            workflowName,
+            workflowRunId,
+            workflowBranch,
+            commitSha,
+            conclusion,
+        }, `Argus: ${RepositoryEvent.WorkflowRunCompleted}`);
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
-        if (prNumber && getWorkflowPrNumbers(context).length === 0) {
-            log.notice(`Argus: PR #${prNumber} resolved via fallback search by head SHA (fork contribution)`);
-        }
         if (!prNumber) {
-            return log.notice('Argus: pull request not found for this workflow run — nothing to do');
+            return log.info('Argus: pull request not found for this workflow run');
         }
-        if (skipReason) {
-            return log.notice(`Argus: skipped — ${skipReason}`);
+        if (shouldSkipWorkflow) {
+            return log.info({ workflowName, workflowBranch }, 'Argus: skipped by "workflows" / "branches-ignore" configs');
         }
-        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
         if (conclusion === 'success') {
-            const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
-            log.info(`Report comment  ${comment.data.html_url}`);
-            log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
-            return comment;
+            return bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
         }
         if (!workflowRunId) {
-            return log.notice('Argus: workflow run id is missing — nothing to do');
+            return log.warn('Argus: workflow run id is missing');
         }
-        const botConfigs = await bot.getBotConfigs(workflowBranch);
-        const configSource = bot.getBotConfigsSource();
-        log.group(LogSection.BotConfigs, () => log.keyValue([
-            [
-                'Source',
-                configSource
-                    ? `${configSource.path} @ ${configSource.owner}/${configSource.repo} (${configSource.found ? 'found' : 'defaults'})`
-                    : '(unknown)',
-            ],
-            ...Object.entries(botConfigs).map(([key, value]) => [
-                key,
-                JSON.stringify(value),
-            ]),
-        ]));
+        const botConfigs = await bot.getBotConfigs();
+        log.info({ botConfigs, source: bot.botConfigsSource }, 'Argus: bot configs');
         const artifacts = await bot.getWorkflowArtifacts(workflowRunId);
         if (!artifacts.length) {
             log.warn('Argus: no workflow artifacts found');
         }
-        log.group(`${LogSection.Artifacts} (${artifacts.length})`, () => log.list(artifacts.map((artifact, i) => `${i + 1}. ${artifact.name}   ${formatBytes(artifact.sizeInBytes)}   id ${artifact.id}`)));
         let loggedFiles = 0;
-        log.group(LogSection.FilesInsideArtifacts, () => {
-            artifacts.forEach((artifact) => {
-                const entries = getFilesFromZipFile(artifact.data).sort((a, b) => a.entryName.localeCompare(b.entryName));
-                const limit = coreExports.isDebug()
-                    ? entries.length
-                    : Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles);
-                const shown = entries.slice(0, limit);
-                log.info(`${artifact.name} (${entries.length} files)`);
-                log.list(shown.map((entry) => `  ${entry.entryName}  ${formatBytes(entry.header.size)}`));
-                if (entries.length > shown.length) {
-                    log.info(`  … ${entries.length - shown.length} more files (output truncated)`);
-                }
-                loggedFiles += shown.length;
-            });
+        artifacts.forEach(({ id, name, sizeInBytes, data }) => {
+            const files = getFilesFromZipFile(data)
+                .map((entry) => entry.entryName)
+                .sort();
+            const shown = files.slice(0, Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles));
+            loggedFiles += shown.length;
+            log.info({
+                id,
+                sizeInBytes,
+                files: shown,
+                truncatedFiles: files.length - shown.length,
+            }, `Argus: artifact "${name}" (${files.length} files)`);
         });
         const artifactsData = artifacts.map((artifact) => artifact.data);
         const failedTestsImages = await bot.getScreenshotDiffImages(artifactsData, workflowBranch);
         const { commitSha: diffsCommitSha, urls: failedTestsImagesUrls } = await bot.uploadImages(failedTestsImages.map((image) => image.getData()), prNumber, workflowRunId);
         const newTestsImages = await bot.getNewScreenshotImages(artifactsData, workflowBranch);
         const { commitSha: newCommitSha, urls: newTestsImagesUrls } = await bot.uploadImages(newTestsImages.map((image) => image.getData()), prNumber, workflowRunId, failedTestsImages.length);
-        log.group(`${LogSection.ScreenshotDiffs} (${failedTestsImages.length})`, () => log.list(zip(failedTestsImages, failedTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
-        log.group(`${LogSection.NewScreenshots} (${newTestsImages.length})`, () => log.list(zip(newTestsImages, newTestsImagesUrls).map(([image, url]) => `${image.entryName}\n  → ${url}`)));
-        if (!failedTestsImages.length && !newTestsImages.length) {
-            log.warn('Argus: no screenshot diff/new images matched the configured patterns');
+        if (failedTestsImages.length || newTestsImages.length) {
+            log.info({
+                diffs: failedTestsImages.map((image) => image.entryName),
+                newScreenshots: newTestsImages.map((image) => image.entryName),
+                storageCommitSha: newCommitSha || diffsCommitSha,
+            }, 'Argus: uploaded screenshots');
         }
-        const uploadedCommitSha = newCommitSha || diffsCommitSha;
-        if (uploadedCommitSha) {
-            log.info(`Uploaded ${failedTestsImages.length + newTestsImages.length} image(s) to branch "${STORAGE_BRANCH}"  ${getBranchUrl(repo, STORAGE_BRANCH)}`);
-            log.info(`Storage commit  ${uploadedCommitSha}  ${getCommitUrl(repo, uploadedCommitSha)}`);
+        else {
+            log.warn('Argus: no screenshot diff/new images matched the configured patterns');
         }
         const reportText = failedTestsImages.length || newTestsImages.length
             ? getFailureReport(zip(failedTestsImages, failedTestsImagesUrls), zip(newTestsImages, newTestsImagesUrls), { commitSha, botConfigs })
             : BotReportMessage.FailedWorkflowNoScreenshots;
-        const comment = await bot.createOrUpdateReport(prNumber, reportText);
-        log.info(`Report comment  ${comment.data.html_url}`);
-        log.info(`Argus finished in ${formatDuration(Date.now() - startedAt)}`);
-        return comment;
+        return bot.createOrUpdateReport(prNumber, reportText);
     },
     [RepositoryEvent.WorkflowRunRequested]: async (context) => {
-        const log = createLogger(context.log);
+        const { log } = context;
         const bot = new ScreenshotBot(context);
-        const repo = context.repo();
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
-        const workflowRunId = getWorkflowRunId(context);
-        logContext(log, context, RepositoryEvent.WorkflowRunRequested, [
-            [
-                'Workflow',
-                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-            ],
-            ['Head branch', workflowBranch || '(unknown)'],
-        ]);
-        const [prNumber, skipReason] = await Promise.all([
+        log.info({
+            id: context.id,
+            isGithubAction: IS_GITHUB_ACTION,
+            workflowName,
+            workflowBranch,
+        }, `Argus: ${RepositoryEvent.WorkflowRunRequested}`);
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
         if (!prNumber) {
-            return log.notice('Argus: pull request not found for this workflow run — nothing to do');
+            return log.info('Argus: pull request not found for this workflow run');
         }
-        if (skipReason) {
-            return log.notice(`Argus: skipped — ${skipReason}`);
-        }
-        log.info(`Pull request  #${prNumber}  ${getPrUrl(repo, prNumber)}`);
-        const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
-        log.info(`Report comment  ${comment.data.html_url}`);
-        return comment;
+        return shouldSkipWorkflow
+            ? log.info({ workflowName, workflowBranch }, 'Argus: skipped by "workflows" / "branches-ignore" configs')
+            : bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
     },
     [RepositoryEvent.PRClosed]: async (context) => {
-        const log = createLogger(context.log);
+        const { log } = context;
         const bot = new ScreenshotBot(context);
-        const repo = context.repo();
         const prNumber = context.payload.number;
-        logContext(log, context, RepositoryEvent.PRClosed, [
-            ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
-        ]);
+        log.info({ id: context.id, isGithubAction: IS_GITHUB_ACTION, prNumber }, `Argus: ${RepositoryEvent.PRClosed}`);
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
         if (!oldBotComment?.id) {
-            return log.notice('Argus: no previous bot comment found for this PR — nothing to clean up');
+            return log.info('Argus: no previous bot comment found for this PR');
         }
         const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
-        if (deletedCommitSha) {
-            log.info(`Deleted stored screenshots, commit  ${deletedCommitSha}  ${getCommitUrl(repo, deletedCommitSha)}`);
-        }
-        else {
-            log.notice('Argus: no stored screenshots found for this PR');
-        }
-        const comment = await bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
-        log.info(`Report comment  ${comment.data.html_url}`);
-        return comment;
+        log.info({ deletedCommitSha }, 'Argus: deleted stored screenshots');
+        return bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
     },
 };
 var app = (app) => {
