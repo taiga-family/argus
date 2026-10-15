@@ -9,6 +9,7 @@ import {
     GITHUB_CDN_DOMAIN,
     GithubFileMode,
     IMAGES_STORAGE_FOLDER,
+    IS_GITHUB_ACTION,
     STORAGE_BRANCH,
     TEST_REPORT_HIDDEN_LABEL,
 } from '../constants';
@@ -125,7 +126,7 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
         const artifacts = artifactsInfo.data.artifacts;
 
         return Promise.all(
-            artifacts.map(async ({id, name, size_in_bytes: sizeInBytes, expired}) =>
+            artifacts.map(async ({id, name, size_in_bytes: sizeInBytes}) =>
                 this.context.octokit.actions
                     .downloadArtifact(
                         this.context.repo({artifact_id: id, archive_format: 'zip'}),
@@ -134,7 +135,6 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
                         id,
                         name,
                         sizeInBytes,
-                        expired,
                         data: data as F,
                     })),
             ),
@@ -547,7 +547,7 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
         }
 
         const hasTests =
-            process.env.GITHUB_ACTIONS ||
+            IS_GITHUB_ACTION ||
             (workflowName &&
                 this.botConfigs.workflows.some((regExp) =>
                     new RegExp(regExp, 'gi').test(workflowName),

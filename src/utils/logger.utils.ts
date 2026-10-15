@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import {type Logger as PinoLogger} from 'pino';
 
+import {IS_GITHUB_ACTION} from '../constants';
 import {formatKeyValue} from './format.utils';
 
 export interface IBotLogger {
@@ -13,10 +14,8 @@ export interface IBotLogger {
 }
 
 export function createLogger(log: PinoLogger): IBotLogger {
-    const isAction = !!process.env.GITHUB_ACTIONS;
-
     const info = (message: string): void => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             core.info(message);
         } else {
             log.info(message);
@@ -24,7 +23,7 @@ export function createLogger(log: PinoLogger): IBotLogger {
     };
 
     const notice = (message: string): void => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             core.notice(message);
         } else {
             log.info(message);
@@ -32,7 +31,7 @@ export function createLogger(log: PinoLogger): IBotLogger {
     };
 
     const warn = (message: string): void => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             core.warning(message);
         } else {
             log.warn(message);
@@ -41,7 +40,7 @@ export function createLogger(log: PinoLogger): IBotLogger {
 
     // GitHub does not support nested `::group::` sections, so callers must not nest `group()` calls.
     const group = (title: string, render: () => void): void => {
-        if (!isAction) {
+        if (!IS_GITHUB_ACTION) {
             info(`— ${title} —`);
             render();
 

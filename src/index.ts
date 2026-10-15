@@ -4,7 +4,8 @@ import {type Context, type Probot} from 'probot';
 import {ScreenshotBot} from './classes';
 import {
     BotReportMessage,
-    LOG_MAX_TREE_ENTRIES,
+    IS_GITHUB_ACTION,
+    LOG_MAX_FILE_ENTRIES,
     LogSection,
     STORAGE_BRANCH,
 } from './constants';
@@ -22,13 +23,12 @@ import {
     getWorkflowRunUrl,
 } from './selectors';
 import {
-    buildFilesTree,
     createLogger,
     formatBytes,
     formatDuration,
     getFailureReport,
     getFilesFromZipFile,
-    renderFilesTree,
+    type IBotLogger,
     zip,
 } from './utils';
 
@@ -42,11 +42,24 @@ const RepositoryEvent = {
     PRClosed: 'pull_request.closed',
 } as const;
 
-const getRunMode = (): string =>
-    process.env.GITHUB_ACTIONS ? 'GitHub Action' : 'GitHub App';
+const logContext = (
+    log: IBotLogger,
+    {id, repo}: Pick<Context, 'id' | 'repo'>,
+    event: string,
+    rows: Array<[string, string]>,
+): void => {
+    const {owner, repo: name} = repo();
 
-const getContextIdLabel = (): string =>
-    process.env.GITHUB_ACTIONS ? 'Action run id' : 'Delivery id';
+    log.group(LogSection.Context, () =>
+        log.keyValue([
+            ['Event', event],
+            [IS_GITHUB_ACTION ? 'Action run id' : 'Delivery id', id],
+            ['Repository', `${owner}/${name}`],
+            ...rows,
+            ['Run mode', IS_GITHUB_ACTION ? 'GitHub Action' : 'GitHub App'],
+        ]),
+    );
+};
 
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
@@ -65,30 +78,24 @@ const EVENTS_CALLBACKS = {
         const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
 
-        log.group(LogSection.Context, () =>
-            log.keyValue([
-                ['Event', RepositoryEvent.WorkflowRunCompleted],
-                [getContextIdLabel(), context.id],
-                ['Repository', `${repo.owner}/${repo.repo}`],
-                [
-                    'Commit',
-                    commitSha
-                        ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
-                        : '(unknown)',
-                ],
-                [
-                    'Workflow',
-                    `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-                ],
-                ['Head branch', workflowBranch || '(unknown)'],
-                [
-                    'Head repo',
-                    `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
-                ],
-                ['Conclusion', conclusion],
-                ['Run mode', getRunMode()],
-            ]),
-        );
+        logContext(log, context, RepositoryEvent.WorkflowRunCompleted, [
+            [
+                'Commit',
+                commitSha
+                    ? `${commitSha.slice(0, 7)}  ${getCommitUrl(headRepoRef, commitSha)}`
+                    : '(unknown)',
+            ],
+            [
+                'Workflow',
+                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
+            ],
+            ['Head branch', workflowBranch || '(unknown)'],
+            [
+                'Head repo',
+                `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
+            ],
+            ['Conclusion', conclusion],
+        ]);
 
         const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
@@ -166,28 +173,35 @@ const EVENTS_CALLBACKS = {
             ),
         );
 
-        let loggedTreeEntries = 0;
+        let loggedFiles = 0;
 
         log.group(LogSection.FilesInsideArtifacts, () => {
             artifacts.forEach((artifact) => {
-                const entries = getFilesFromZipFile(artifact.data);
-                const maxEntries = core.isDebug()
-                    ? Infinity
-                    : Math.max(0, LOG_MAX_TREE_ENTRIES - loggedTreeEntries);
+                const entries = getFilesFromZipFile(artifact.data).sort((a, b) =>
+                    a.entryName.localeCompare(b.entryName),
+                );
+
+                const limit = core.isDebug()
+                    ? entries.length
+                    : Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles);
+
+                const shown = entries.slice(0, limit);
 
                 log.info(`${artifact.name} (${entries.length} files)`);
-                log.info(
-                    renderFilesTree(
-                        buildFilesTree(
-                            entries.map((entry) => ({
-                                path: entry.entryName,
-                                size: entry.header.size,
-                            })),
-                        ),
-                        {maxEntries},
+                log.list(
+                    shown.map(
+                        (entry) =>
+                            `  ${entry.entryName}  ${formatBytes(entry.header.size)}`,
                     ),
                 );
-                loggedTreeEntries += Math.min(entries.length, maxEntries);
+
+                if (entries.length > shown.length) {
+                    log.info(
+                        `  … ${entries.length - shown.length} more files (output truncated)`,
+                    );
+                }
+
+                loggedFiles += shown.length;
             });
         });
 
@@ -279,19 +293,13 @@ const EVENTS_CALLBACKS = {
         const workflowBranch = getWorkflowBranch(context);
         const workflowRunId = getWorkflowRunId(context);
 
-        log.group(LogSection.Context, () =>
-            log.keyValue([
-                ['Event', RepositoryEvent.WorkflowRunRequested],
-                [getContextIdLabel(), context.id],
-                ['Repository', `${repo.owner}/${repo.repo}`],
-                [
-                    'Workflow',
-                    `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
-                ],
-                ['Head branch', workflowBranch || '(unknown)'],
-                ['Run mode', getRunMode()],
-            ]),
-        );
+        logContext(log, context, RepositoryEvent.WorkflowRunRequested, [
+            [
+                'Workflow',
+                `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
+            ],
+            ['Head branch', workflowBranch || '(unknown)'],
+        ]);
 
         const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
@@ -325,15 +333,9 @@ const EVENTS_CALLBACKS = {
         const repo = context.repo();
         const prNumber = context.payload.number;
 
-        log.group(LogSection.Context, () =>
-            log.keyValue([
-                ['Event', RepositoryEvent.PRClosed],
-                [getContextIdLabel(), context.id],
-                ['Repository', `${repo.owner}/${repo.repo}`],
-                ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
-                ['Run mode', getRunMode()],
-            ]),
-        );
+        logContext(log, context, RepositoryEvent.PRClosed, [
+            ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
+        ]);
 
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 

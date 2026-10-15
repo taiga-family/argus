@@ -1,4 +1,4 @@
-export const LOG_MAX_TREE_ENTRIES = 200;
+export const LOG_MAX_FILE_ENTRIES = 200;
 
 export const LogSection = {
     Context: '[ARGUS] context',

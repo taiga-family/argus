@@ -208386,11 +208386,12 @@ const TEST_REPORT_HIDDEN_LABEL = 'test-report';
 
 const DEFAULT_MAIN_BRANCH = 'main';
 const GITHUB_DOMAIN = 'https://github.com';
+const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTIONS;
 
 const GithubFileMode = {
     Blob: '100644'};
 
-const LOG_MAX_TREE_ENTRIES = 200;
+const LOG_MAX_FILE_ENTRIES = 200;
 const LogSection = {
     Context: '[ARGUS] context',
     BotConfigs: '[ARGUS] bot configurations',
@@ -208444,75 +208445,9 @@ function formatKeyValue(rows) {
     return rows.map(([key, value]) => `${key.padEnd(keyWidth)}  ${value}`).join('\n');
 }
 
-function buildFilesTree(entries) {
-    const root = { name: '', isFile: false, children: [] };
-    for (const entry of entries) {
-        const parts = entry.path.split('/').filter(Boolean);
-        let node = root;
-        parts.forEach((part, index) => {
-            let child = node.children.find((c) => c.name === part);
-            if (!child) {
-                child = { name: part, isFile: false, children: [] };
-                node.children.push(child);
-            }
-            if (index === parts.length - 1) {
-                child.isFile = true;
-                child.size = entry.size;
-            }
-            node = child;
-        });
-    }
-    return root;
-}
-function countFiles(node) {
-    return node.isFile
-        ? 1
-        : node.children.reduce((sum, child) => sum + countFiles(child), 0);
-}
-function sortChildren(children) {
-    return [...children].sort((a, b) => a.name.localeCompare(b.name));
-}
-function renderFilesTree(root, { maxEntries = Infinity } = {}) {
-    const totalFiles = countFiles(root);
-    const lines = [];
-    const state = { printedFiles: 0, stopped: false };
-    if (maxEntries <= 0) {
-        return totalFiles ? `… ${totalFiles} more files (output truncated)` : '';
-    }
-    function walk(node, prefix, isLast, isRoot) {
-        if (state.stopped) {
-            return;
-        }
-        if (!isRoot) {
-            const connector = isLast ? '└─ ' : '├─ ';
-            const label = node.isFile && node.size !== undefined
-                ? `${node.name}  ${formatBytes(node.size)}`
-                : node.name;
-            lines.push(`${prefix}${connector}${label}`);
-            if (node.isFile) {
-                state.printedFiles += 1;
-                if (state.printedFiles >= maxEntries && totalFiles > maxEntries) {
-                    state.stopped = true;
-                    return;
-                }
-            }
-        }
-        const childPrefix = isRoot ? prefix : `${prefix}${isLast ? '   ' : '│  '}`;
-        sortChildren(node.children).forEach((child, index, all) => {
-            walk(child, childPrefix, index === all.length - 1, false);
-        });
-    }
-    walk(root, '', true, true);
-    if (state.stopped) {
-        lines.push(`… ${totalFiles - state.printedFiles} more files (output truncated)`);
-    }
-    return lines.join('\n');
-}
-
 function createLogger(log) {
-    const isAction = !!process.env.GITHUB_ACTIONS;
     const info = (message) => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             coreExports.info(message);
         }
         else {
@@ -208520,7 +208455,7 @@ function createLogger(log) {
         }
     };
     const notice = (message) => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             coreExports.notice(message);
         }
         else {
@@ -208528,7 +208463,7 @@ function createLogger(log) {
         }
     };
     const warn = (message) => {
-        if (isAction) {
+        if (IS_GITHUB_ACTION) {
             coreExports.warning(message);
         }
         else {
@@ -208537,7 +208472,7 @@ function createLogger(log) {
     };
     // GitHub does not support nested `::group::` sections, so callers must not nest `group()` calls.
     const group = (title, render) => {
-        if (!isAction) {
+        if (!IS_GITHUB_ACTION) {
             info(`— ${title} —`);
             render();
             return;
@@ -212163,13 +212098,12 @@ class Bot {
         const workflowRunInfo = this.context.repo({ run_id: workflowRunId });
         const artifactsInfo = await this.context.octokit.actions.listWorkflowRunArtifacts(workflowRunInfo);
         const artifacts = artifactsInfo.data.artifacts;
-        return Promise.all(artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes, expired }) => this.context.octokit.actions
+        return Promise.all(artifacts.map(async ({ id, name, size_in_bytes: sizeInBytes }) => this.context.octokit.actions
             .downloadArtifact(this.context.repo({ artifact_id: id, archive_format: 'zip' }))
             .then(({ data }) => ({
             id,
             name,
             sizeInBytes,
-            expired,
             data: data,
         }))));
     }
@@ -212436,7 +212370,7 @@ class ScreenshotBot extends Bot {
         if (!this.botConfigs) {
             this.botConfigs = await this.loadBotConfigs(workflowBranch);
         }
-        const hasTests = process.env.GITHUB_ACTIONS ||
+        const hasTests = IS_GITHUB_ACTION ||
             (workflowName &&
                 this.botConfigs.workflows.some((regExp) => new RegExp(regExp, 'gi').test(workflowName)));
         if (!hasTests) {
@@ -212495,8 +212429,16 @@ const RepositoryEvent = {
     WorkflowRunRequested: 'workflow_run.requested',
     PRClosed: 'pull_request.closed',
 };
-const getRunMode = () => process.env.GITHUB_ACTIONS ? 'GitHub Action' : 'GitHub App';
-const getContextIdLabel = () => process.env.GITHUB_ACTIONS ? 'Action run id' : 'Delivery id';
+const logContext = (log, { id, repo }, event, rows) => {
+    const { owner, repo: name } = repo();
+    log.group(LogSection.Context, () => log.keyValue([
+        ['Event', event],
+        [IS_GITHUB_ACTION ? 'Action run id' : 'Delivery id', id],
+        ['Repository', `${owner}/${name}`],
+        ...rows,
+        ['Run mode', IS_GITHUB_ACTION ? 'GitHub Action' : 'GitHub App'],
+    ]));
+};
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (context) => {
         const startedAt = Date.now();
@@ -212511,10 +212453,7 @@ const EVENTS_CALLBACKS = {
         const headRepoRef = { owner: headRepo.owner.login, repo: headRepo.name };
         const isFork = headRepo.owner.login !== repo.owner || headRepo.name !== repo.repo;
         const conclusion = getWorkflowRunConclusion(context);
-        log.group(LogSection.Context, () => log.keyValue([
-            ['Event', RepositoryEvent.WorkflowRunCompleted],
-            [getContextIdLabel(), context.id],
-            ['Repository', `${repo.owner}/${repo.repo}`],
+        logContext(log, context, RepositoryEvent.WorkflowRunCompleted, [
             [
                 'Commit',
                 commitSha
@@ -212531,8 +212470,7 @@ const EVENTS_CALLBACKS = {
                 `${headRepo.owner.login}/${headRepo.name}${isFork ? ' (fork)' : ''}`,
             ],
             ['Conclusion', conclusion],
-            ['Run mode', getRunMode()],
-        ]));
+        ]);
         const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
@@ -212575,19 +212513,20 @@ const EVENTS_CALLBACKS = {
             log.warn('Argus: no workflow artifacts found');
         }
         log.group(`${LogSection.Artifacts} (${artifacts.length})`, () => log.list(artifacts.map((artifact, i) => `${i + 1}. ${artifact.name}   ${formatBytes(artifact.sizeInBytes)}   id ${artifact.id}`)));
-        let loggedTreeEntries = 0;
+        let loggedFiles = 0;
         log.group(LogSection.FilesInsideArtifacts, () => {
             artifacts.forEach((artifact) => {
-                const entries = getFilesFromZipFile(artifact.data);
-                const maxEntries = coreExports.isDebug()
-                    ? Infinity
-                    : Math.max(0, LOG_MAX_TREE_ENTRIES - loggedTreeEntries);
+                const entries = getFilesFromZipFile(artifact.data).sort((a, b) => a.entryName.localeCompare(b.entryName));
+                const limit = coreExports.isDebug()
+                    ? entries.length
+                    : Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles);
+                const shown = entries.slice(0, limit);
                 log.info(`${artifact.name} (${entries.length} files)`);
-                log.info(renderFilesTree(buildFilesTree(entries.map((entry) => ({
-                    path: entry.entryName,
-                    size: entry.header.size,
-                }))), { maxEntries }));
-                loggedTreeEntries += Math.min(entries.length, maxEntries);
+                log.list(shown.map((entry) => `  ${entry.entryName}  ${formatBytes(entry.header.size)}`));
+                if (entries.length > shown.length) {
+                    log.info(`  … ${entries.length - shown.length} more files (output truncated)`);
+                }
+                loggedFiles += shown.length;
             });
         });
         const artifactsData = artifacts.map((artifact) => artifact.data);
@@ -212620,17 +212559,13 @@ const EVENTS_CALLBACKS = {
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
         const workflowRunId = getWorkflowRunId(context);
-        log.group(LogSection.Context, () => log.keyValue([
-            ['Event', RepositoryEvent.WorkflowRunRequested],
-            [getContextIdLabel(), context.id],
-            ['Repository', `${repo.owner}/${repo.repo}`],
+        logContext(log, context, RepositoryEvent.WorkflowRunRequested, [
             [
                 'Workflow',
                 `"${workflowName}" (run ${workflowRunId})  ${getWorkflowRunUrl(repo, workflowRunId)}`,
             ],
             ['Head branch', workflowBranch || '(unknown)'],
-            ['Run mode', getRunMode()],
-        ]));
+        ]);
         const [prNumber, skipReason] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
@@ -212651,13 +212586,9 @@ const EVENTS_CALLBACKS = {
         const bot = new ScreenshotBot(context);
         const repo = context.repo();
         const prNumber = context.payload.number;
-        log.group(LogSection.Context, () => log.keyValue([
-            ['Event', RepositoryEvent.PRClosed],
-            [getContextIdLabel(), context.id],
-            ['Repository', `${repo.owner}/${repo.repo}`],
+        logContext(log, context, RepositoryEvent.PRClosed, [
             ['Pull request', `#${prNumber}  ${getPrUrl(repo, prNumber)}`],
-            ['Run mode', getRunMode()],
-        ]));
+        ]);
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
         if (!oldBotComment?.id) {
             return log.notice('Argus: no previous bot comment found for this PR — nothing to clean up');

@@ -114,8 +114,8 @@ if that's the case) to the job's stdout — no more empty console for a silent r
 - The pull request number/link and the commit SHA that triggered the workflow run.
 - The resolved (merged) bot configuration, and whether it came from `.github/screenshot-bot.config.yml` or from the
   defaults.
-- The artifacts found for the workflow run (name, size, id) and a file tree of their contents (capped at 200 entries —
-  re-run with `ACTIONS_STEP_DEBUG=true` for the untruncated tree).
+- The artifacts found for the workflow run (name, size, id) and a sorted list of the files inside (capped at 200 entries
+  — re-run with `ACTIONS_STEP_DEBUG=true` for the full list).
 - The screenshot diff / new-screenshot images that were matched, and the storage-branch commit they were uploaded to.
 - An explicit reason whenever Argus exits early: no pull request found, workflow/branch filtered out by config, no
   artifacts, etc. — instead of a silent no-op.
