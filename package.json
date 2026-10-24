@@ -35,7 +35,7 @@
         "@rollup/plugin-typescript": "12.3.0",
         "@taiga-ui/eslint-plugin-experience-next": "0.566.0",
         "@taiga-ui/prettier-config": "0.566.0",
-        "@types/adm-zip": "0.5.8",
+        "@types/adm-zip": "0.6.0",
         "@types/node": "22.20.5",
         "concurrently": "9.2.5",
         "rollup": "4.64.5",
