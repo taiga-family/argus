@@ -32,7 +32,7 @@
         "@rollup/plugin-commonjs": "28.0.9",
         "@rollup/plugin-json": "6.1.0",
         "@rollup/plugin-node-resolve": "16.0.3",
-        "@rollup/plugin-typescript": "12.3.0",
+        "@rollup/plugin-typescript": "12.3.1",
         "@taiga-ui/eslint-plugin-experience-next": "0.569.0",
         "@taiga-ui/prettier-config": "0.569.0",
         "@types/adm-zip": "0.6.0",
