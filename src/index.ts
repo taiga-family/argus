@@ -1,7 +1,7 @@
 import {type Context, type Probot} from 'probot';
 
 import {ScreenshotBot} from './classes';
-import {BotReportMessage} from './constants';
+import {BotReportMessage, IS_GITHUB_ACTION, LOG_MAX_FILE_ENTRIES} from './constants';
 import {
     getWorkflowBranch,
     getWorkflowHeadSha,
@@ -9,7 +9,7 @@ import {
     getWorkflowRunConclusion,
     getWorkflowRunId,
 } from './selectors';
-import {getFailureReport, zip} from './utils';
+import {getFailureReport, getFilesFromZipFile, zip} from './utils';
 
 const RepositoryEvent = {
     WorkflowRunCompleted: 'workflow_run.completed',
@@ -21,57 +21,125 @@ const RepositoryEvent = {
     PRClosed: 'pull_request.closed',
 } as const;
 
+const logEvent = (context: Context, event: string, fields: object): void =>
+    context.log.info({isGithubAction: IS_GITHUB_ACTION, ...fields}, `Argus: ${event}`);
+
 const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunCompleted]: async (
         context: Context<'workflow_run.completed'>,
     ) => {
+        const {log} = context;
         const bot = new ScreenshotBot<'workflow_run.completed'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
+        const workflowRunId = getWorkflowRunId(context);
         const commitSha = getWorkflowHeadSha(context) || '';
+        const conclusion = getWorkflowRunConclusion(context);
+
+        logEvent(context, RepositoryEvent.WorkflowRunCompleted, {
+            workflowName,
+            workflowRunId,
+            workflowBranch,
+            commitSha,
+            conclusion,
+        });
+
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
 
-        if (!prNumber || shouldSkipWorkflow) {
-            return;
+        if (!prNumber) {
+            return log.info('Argus: pull request not found for this workflow run');
         }
 
-        if (getWorkflowRunConclusion(context) === 'success') {
+        if (shouldSkipWorkflow) {
+            return log.info(
+                {workflowName, workflowBranch},
+                'Argus: skipped by "workflows" / "branches-ignore" configs',
+            );
+        }
+
+        if (conclusion === 'success') {
             return bot.createOrUpdateReport(prNumber, BotReportMessage.SuccessWorkflow);
         }
 
-        const workflowRunId = getWorkflowRunId(context);
-
         if (!workflowRunId) {
-            return;
+            return log.warn('Argus: workflow run id is missing');
         }
 
+        const botConfigs = await bot.getBotConfigs();
+
+        log.info({botConfigs, source: bot.botConfigsSource}, 'Argus: bot configs');
+
         const artifacts = await bot.getWorkflowArtifacts<ArrayBuffer>(workflowRunId);
+
+        if (!artifacts.length) {
+            log.warn('Argus: no workflow artifacts found');
+        }
+
+        let loggedFiles = 0;
+
+        artifacts.forEach(({id, name, sizeInBytes, data}) => {
+            const files = getFilesFromZipFile(data)
+                .map((entry) => entry.entryName)
+                .sort();
+
+            const shown = files.slice(0, Math.max(0, LOG_MAX_FILE_ENTRIES - loggedFiles));
+
+            loggedFiles += shown.length;
+            log.info(
+                {
+                    artifactId: id,
+                    sizeInBytes,
+                    files: shown,
+                    truncatedFiles: files.length - shown.length,
+                },
+                `Argus: artifact "${name}" (${files.length} files)`,
+            );
+        });
+
+        const artifactsData = artifacts.map((artifact) => artifact.data);
         const failedTestsImages = await bot.getScreenshotDiffImages(
-            artifacts,
+            artifactsData,
             workflowBranch,
         );
 
-        const failedTestsImagesUrls = await bot.uploadImages(
-            failedTestsImages.map((image) => image.getData()),
-            prNumber,
-            workflowRunId,
-        );
+        const {commitSha: diffsCommitSha, urls: failedTestsImagesUrls} =
+            await bot.uploadImages(
+                failedTestsImages.map((image) => image.getData()),
+                prNumber,
+                workflowRunId,
+            );
 
         const newTestsImages = await bot.getNewScreenshotImages(
-            artifacts,
+            artifactsData,
             workflowBranch,
         );
 
-        const newTestsImagesUrls = await bot.uploadImages(
-            newTestsImages.map((image) => image.getData()),
-            prNumber,
-            workflowRunId,
-        );
+        const {commitSha: newCommitSha, urls: newTestsImagesUrls} =
+            await bot.uploadImages(
+                newTestsImages.map((image) => image.getData()),
+                prNumber,
+                workflowRunId,
+                failedTestsImages.length,
+            );
 
-        const botConfigs = await bot.getBotConfigs();
+        if (failedTestsImages.length || newTestsImages.length) {
+            log.info(
+                {
+                    diffs: failedTestsImages.map((image) => image.entryName),
+                    newScreenshots: newTestsImages.map((image) => image.entryName),
+                    storageCommitSha: newCommitSha || diffsCommitSha,
+                },
+                'Argus: uploaded screenshots',
+            );
+        } else {
+            log.warn(
+                'Argus: no screenshot diff/new images matched the configured patterns',
+            );
+        }
+
         const reportText =
             failedTestsImages.length || newTestsImages.length
                 ? getFailureReport(
@@ -86,33 +154,55 @@ const EVENTS_CALLBACKS = {
     [RepositoryEvent.WorkflowRunRequested]: async (
         context: Context<'workflow_run.requested'>,
     ) => {
+        const {log} = context;
         const bot = new ScreenshotBot<'workflow_run.requested'>(context);
         const workflowName = getWorkflowName(context);
         const workflowBranch = getWorkflowBranch(context);
+
+        logEvent(context, RepositoryEvent.WorkflowRunRequested, {
+            workflowName,
+            workflowBranch,
+        });
+
         const [prNumber, shouldSkipWorkflow] = await Promise.all([
             bot.getWorkflowPrNumber(),
             bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
         ]);
 
-        if (!prNumber || shouldSkipWorkflow) {
-            return;
+        if (!prNumber) {
+            return log.info('Argus: pull request not found for this workflow run');
         }
 
-        return bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
+        return shouldSkipWorkflow
+            ? log.info(
+                  {workflowName, workflowBranch},
+                  'Argus: skipped by "workflows" / "branches-ignore" configs',
+              )
+            : bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
     },
     [RepositoryEvent.PRClosed]: async (context: Context<'pull_request.closed'>) => {
+        const {log} = context;
         const bot = new ScreenshotBot<'pull_request.closed'>(context);
         const prNumber = context.payload.number;
+
+        logEvent(context, RepositoryEvent.PRClosed, {prNumber});
+
         const oldBotComment = await bot.getPrevBotReportComment(prNumber);
 
-        return (
-            oldBotComment?.id &&
-            bot
-                .deleteUploadedImagesFolder(prNumber)
-                .then(async () =>
-                    bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed),
-                )
+        if (!oldBotComment?.id) {
+            return log.info('Argus: no previous bot comment found for this PR');
+        }
+
+        const deletedCommitSha = await bot.deleteUploadedImagesFolder(prNumber);
+
+        log.info(
+            {deletedCommitSha},
+            deletedCommitSha
+                ? 'Argus: deleted stored screenshots'
+                : 'Argus: no stored screenshots found for this PR',
         );
+
+        return bot.createOrUpdateReport(prNumber, BotReportMessage.PRClosed);
     },
 } as const;
 
