@@ -32,6 +32,26 @@ type IssueComment = OctokitResponse<
     ProbotOctokit['rest']['issues']['listComments']
 >['data'][number];
 
+const reportCommentIndex = (body: string): number | null => {
+    const marker = /^<!-- screenshot-bot-id: ([\w-]+) -->/.exec(body)?.at(1);
+
+    if (marker === TEST_REPORT_HIDDEN_LABEL) {
+        return 0;
+    }
+
+    const prefix = `${TEST_REPORT_HIDDEN_LABEL}-batch-`;
+
+    if (!marker?.startsWith(prefix)) {
+        return null;
+    }
+
+    const part = Number(marker.slice(prefix.length));
+
+    return Number.isSafeInteger(part) && part >= 2 && marker === `${prefix}${part}`
+        ? part - 1
+        : null;
+};
+
 export abstract class Bot<T extends EmitterWebhookEventName> {
     protected context: Context<T>;
 
@@ -97,12 +117,24 @@ export abstract class Bot<T extends EmitterWebhookEventName> {
      * (or **pull_requests:read** if you are working only with PRs) permission to use this endpoints.
      */
     public async getCommentsByIssueId(issueNumber: number): Promise<IssueComment[]> {
-        return this.context.octokit.rest.issues
-            .listComments({
+        const comments: IssueComment[] = [];
+        let page = 1;
+        let hasNextPage = true;
+
+        while (hasNextPage) {
+            const {data} = await this.context.octokit.rest.issues.listComments({
                 ...this.context.repo(),
                 issue_number: issueNumber,
-            })
-            .then(({data}) => data);
+                per_page: 100,
+                page,
+            });
+
+            comments.push(...data);
+            hasNextPage = data.length === 100;
+            page++;
+        }
+
+        return comments;
     }
 
     /**
@@ -431,21 +463,82 @@ export class ScreenshotBot<T extends EmitterWebhookEventName> extends Bot<T> {
     public async createOrUpdateReport(
         prNumber: number,
         markdownText: string,
-    ): Promise<
-        OctokitResponse<
-            | ProbotOctokit['issues']['createComment']
-            | ProbotOctokit['rest']['issues']['updateComment']
-        >
-    > {
-        const oldBotComment = await this.getPrevBotReportComment(prNumber);
-        const markedMarkdownText = markCommentWithHiddenLabel(
-            markdownText,
-            TEST_REPORT_HIDDEN_LABEL,
-        );
+    ): Promise<void> {
+        await this.createOrUpdateReportBatches(prNumber, [markdownText]);
+    }
 
-        return oldBotComment?.id
-            ? this.updateComment(oldBotComment.id, markedMarkdownText)
-            : this.sendComment(prNumber, markedMarkdownText);
+    /**
+     * Update existing report parts instead of posting duplicates on every CI run.
+     * Part one retains the legacy "test-report" marker for compatibility.
+     */
+    public async createOrUpdateReportBatches(
+        prNumber: number,
+        markdownParts: string[],
+    ): Promise<void> {
+        if (!markdownParts.length) {
+            throw new Error('A screenshot report must contain at least one part');
+        }
+
+        const parts = markdownParts.map((markdown, index) => {
+            const label =
+                index === 0
+                    ? TEST_REPORT_HIDDEN_LABEL
+                    : `${TEST_REPORT_HIDDEN_LABEL}-batch-${index + 1}`;
+
+            const body = markCommentWithHiddenLabel(markdown, label);
+
+            if (body.length > 65_536) {
+                throw new Error('Screenshot report batch exceeds GitHub comment limit');
+            }
+
+            return body;
+        });
+
+        const comments = await this.getCommentsByIssueId(prNumber);
+        const existing = new Map<number, IssueComment>();
+        const obsolete: IssueComment[] = [];
+
+        for (const comment of comments) {
+            // Do not edit or delete a human's comment even if it contains our marker.
+            if (comment.user?.type !== 'Bot') {
+                continue;
+            }
+
+            const index = reportCommentIndex(comment.body || '');
+
+            if (index === null) {
+                continue;
+            }
+
+            if (existing.has(index)) {
+                obsolete.push(comment);
+            } else {
+                existing.set(index, comment);
+            }
+        }
+
+        for (const [index, body] of parts.entries()) {
+            const comment = existing.get(index);
+
+            if (comment) {
+                await this.updateComment(comment.id, body);
+            } else {
+                await this.sendComment(prNumber, body);
+            }
+        }
+
+        for (const [index, comment] of existing) {
+            if (index >= parts.length) {
+                obsolete.push(comment);
+            }
+        }
+
+        for (const comment of obsolete) {
+            await this.context.octokit.rest.issues.deleteComment({
+                ...this.context.repo(),
+                comment_id: comment.id,
+            });
+        }
     }
 
     public async getImagesByFn(

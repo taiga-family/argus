@@ -9,7 +9,7 @@ import {
     getWorkflowRunConclusion,
     getWorkflowRunId,
 } from './selectors';
-import {getFailureReport, zip} from './utils';
+import {getFailureReportBatches, zip} from './utils';
 
 const RepositoryEvent = {
     WorkflowRunCompleted: 'workflow_run.completed',
@@ -18,6 +18,7 @@ const RepositoryEvent = {
      * see {@link https://github.com/actions/runner/issues/726 github issue}
      * */
     WorkflowRunRequested: 'workflow_run.requested',
+    WorkflowRunInProgress: 'workflow_run.in_progress',
     PRClosed: 'pull_request.closed',
 } as const;
 
@@ -72,16 +73,16 @@ const EVENTS_CALLBACKS = {
         );
 
         const botConfigs = await bot.getBotConfigs();
-        const reportText =
+        const reportParts =
             failedTestsImages.length || newTestsImages.length
-                ? getFailureReport(
+                ? getFailureReportBatches(
                       zip(failedTestsImages, failedTestsImagesUrls),
                       zip(newTestsImages, newTestsImagesUrls),
                       {commitSha, botConfigs},
                   )
-                : BotReportMessage.FailedWorkflowNoScreenshots;
+                : [BotReportMessage.FailedWorkflowNoScreenshots];
 
-        return bot.createOrUpdateReport(prNumber, reportText);
+        return bot.createOrUpdateReportBatches(prNumber, reportParts);
     },
     [RepositoryEvent.WorkflowRunRequested]: async (
         context: Context<'workflow_run.requested'>,
@@ -98,6 +99,25 @@ const EVENTS_CALLBACKS = {
             return;
         }
 
+        return bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
+    },
+    [RepositoryEvent.WorkflowRunInProgress]: async (
+        context: Context<'workflow_run.in_progress'>,
+    ) => {
+        const bot = new ScreenshotBot<'workflow_run.in_progress'>(context);
+        const workflowName = getWorkflowName(context);
+        const workflowBranch = getWorkflowBranch(context);
+        const [prNumber, shouldSkipWorkflow] = await Promise.all([
+            bot.getWorkflowPrNumber(),
+            bot.checkShouldSkipWorkflow(workflowName, workflowBranch),
+        ]);
+
+        if (!prNumber || shouldSkipWorkflow) {
+            return;
+        }
+
+        // GitHub does not send "requested" when workflows are re-run.
+        // Reset the main comment and remove stale screenshot batches.
         return bot.createOrUpdateReport(prNumber, BotReportMessage.LoadingWorkflow);
     },
     [RepositoryEvent.PRClosed]: async (context: Context<'pull_request.closed'>) => {
@@ -119,6 +139,10 @@ const EVENTS_CALLBACKS = {
 export default (app: Probot): void => {
     app.on(RepositoryEvent.WorkflowRunRequested, async (context) => {
         await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunRequested](context);
+    });
+
+    app.on(RepositoryEvent.WorkflowRunInProgress, async (context) => {
+        await EVENTS_CALLBACKS[RepositoryEvent.WorkflowRunInProgress](context);
     });
 
     app.on(RepositoryEvent.WorkflowRunCompleted, async (context) => {

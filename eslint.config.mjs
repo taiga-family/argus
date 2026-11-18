@@ -11,7 +11,13 @@ export default [
             parserOptions: {
                 // files which are not covered by `tsconfig.json`
                 projectService: {
-                    allowDefaultProject: ['*.js', '*.mjs', 'rollup.config.ts', 'api/github/webhooks/index.js'],
+                    allowDefaultProject: [
+                        '*.js',
+                        '*.mjs',
+                        'rollup.config.ts',
+                        'api/github/webhooks/index.js',
+                        'tests/*.cjs',
+                    ],
                 },
             },
         },
