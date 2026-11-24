@@ -22,7 +22,7 @@ GitHub Action is recommended approach to use bot.<br /> However, its deployment
 on:
   workflow_run:
     workflows: [E2E Results] # <-- Choose any workflows to be watched by bot
-    types: [requested, completed]
+    types: [requested, in_progress, completed]
     branches-ignore:
       - 'main'
       - 'release/**'
@@ -99,8 +99,9 @@ branches-ignore: []
 
 ## What bot can do? :bulb:
 
-- Holds first PR comment. All workflow updates edit already existing bot comment. No endless stream of comments from
-  bot!
+- Keeps one PR comment for small reports. Large reports are split into size-bounded comment batches to stay below
+  GitHub's 65,536-character limit. Subsequent runs update the same comments and remove obsolete batches.
+- Resets stale screenshot batches when tests start or are re-run (requires `workflow_run.in_progress`).
 - Sets loading state comment when PR is opened or new commits are pushed to PR. ![loading-demo](.demo/loading.png)
 - Downloads artifacts from workflow with tests, finds screenshots diffs images, and pins them to the tests failure
   report. ![error-report-demo](.demo/error-report.png)

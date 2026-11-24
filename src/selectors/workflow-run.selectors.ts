@@ -2,6 +2,7 @@ import {type Context} from 'probot';
 
 type WorkflowRunContext =
     | Context<'workflow_run.completed'>
+    | Context<'workflow_run.in_progress'>
     | Context<'workflow_run.requested'>
     | Context<'workflow_run'>;
 
